@@ -1,10 +1,15 @@
 $ErrorActionPreference = "Continue"
 $base = "C:\Users\delig\OneDrive\Documents\Default Project\audit"
 $data = "$base\.data"
+$hardhat = "$base\node_modules\.bin\hardhat.cmd"
+$tsx = "$base\node_modules\.bin\tsx.cmd"
 
-$pNode = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npx.cmd hardhat node" -WorkingDirectory "$base\packages\contracts" -WindowStyle Hidden -RedirectStandardOutput "$data\hardhat-node.log" -RedirectStandardError "$data\hardhat-node.err.log" -PassThru
+# Deterministic run: reset agent state so assertions reflect only this run.
+Remove-Item "$data\state.json", "$data\ledger.jsonl", "$data\priceHistory.json" -ErrorAction SilentlyContinue
+
+$pNode = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$hardhat`" node" -WorkingDirectory "$base\packages\contracts" -WindowStyle Hidden -RedirectStandardOutput "$data\hardhat-node.log" -RedirectStandardError "$data\hardhat-node.err.log" -PassThru
 Write-Output "node pid: $($pNode.Id)"
-Start-Sleep -Seconds 15
+Start-Sleep -Seconds 25
 
 $ready = $false
 try {
@@ -16,7 +21,7 @@ Write-Output "node ready: $ready"
 $env:AGENT_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 $env:MARKET_MAKER_PRIVATE_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 Push-Location "$base\packages\contracts"
-npx.cmd hardhat run scripts/deploy.ts --network localhost 2>&1 | Select-Object -Last 3
+& $hardhat run scripts/deploy.ts --network localhost 2>&1 | Select-Object -Last 3
 Pop-Location
 
 $env:RPC_URL = "http://127.0.0.1:8545"
@@ -25,9 +30,9 @@ $env:VETO_WINDOW_CYCLES = "2"
 $env:OUTCOME_HORIZON_CYCLES = "6"
 $env:PORT = "8787"
 
-$pAgent = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npx.cmd tsx src/index.ts" -WorkingDirectory "$base\packages\agent" -WindowStyle Hidden -RedirectStandardOutput "$data\agent.log" -RedirectStandardError "$data\agent.err.log" -PassThru
+$pAgent = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$tsx`" src/index.ts" -WorkingDirectory "$base\packages\agent" -WindowStyle Hidden -RedirectStandardOutput "$data\agent.log" -RedirectStandardError "$data\agent.err.log" -PassThru
 Write-Output "agent pid: $($pAgent.Id)"
-Start-Sleep -Seconds 48
+Start-Sleep -Seconds 50
 
 Write-Output "=== AGENT LOG ==="
 Get-Content "$data\agent.log" -ErrorAction SilentlyContinue | Select-Object -First 25
@@ -56,7 +61,7 @@ try {
 
 Write-Output "=== ON-CHAIN REGISTRY ==="
 Push-Location "$base\packages\contracts"
-npx.cmd hardhat run scripts/inspect.ts --network localhost 2>&1 | Select-Object -Last 4
+& $hardhat run scripts/inspect.ts --network localhost 2>&1 | Select-Object -Last 4
 Pop-Location
 
 Write-Output "=== CLEANUP ==="

@@ -28,6 +28,11 @@ export function computeTrust(entries: LedgerEntry[]): TrustState {
     } else if (e.kind === "outcome") {
       resolvedIds.add(String(d.decisionId));
       resolved++;
+      if (d.side === "hold") {
+        // Standing aside is not a graded call: the score measures what the
+        // agent actually *did*, not the trades it declined to make.
+        continue;
+      }
       if (d.vetoCorrect === true) {
         vetoCorrect++;
         score += 4;

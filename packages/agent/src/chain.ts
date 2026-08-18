@@ -1,4 +1,4 @@
-import { NonceManager, ethers } from "ethers";
+import { ethers } from "ethers";
 import { Config } from "./config.js";
 
 export const ERC20_ABI = [
@@ -25,17 +25,48 @@ export const AUDIT_ABI = [
 
 export interface Chain {
   provider: ethers.JsonRpcProvider;
-  agent: ethers.NonceManager;
-  mm: ethers.NonceManager;
+  agent: ethers.Wallet;
+  mm: ethers.Wallet;
   tokens: { auth: string; auds: string };
   amm: string;
   auditRegistry: string;
 }
 
+/**
+ * A wallet that owns a monotonically increasing nonce counter instead of
+ * trusting the node's possibly-stale cached count on every send. The loop is
+ * serialized (one awaited send at a time), so the counter can never collide.
+ * On a broadcast rejection the counter rolls back so the send can retry.
+ */
+class NoncedWallet extends ethers.Wallet {
+  private _nextNonce: number | null = null;
+
+  override async sendTransaction(
+    tx: ethers.TransactionRequest
+  ): Promise<ethers.TransactionResponse> {
+    if (this._nextNonce == null) {
+      this._nextNonce = await this.provider!.getTransactionCount(
+        this.address,
+        "pending"
+      );
+    }
+    const nonce: number = this._nextNonce;
+    this._nextNonce += 1;
+    try {
+      return await super.sendTransaction({ ...tx, nonce });
+    } catch (e) {
+      this._nextNonce -= 1;
+      throw e;
+    }
+  }
+}
+
 export function connectChain(config: Config): Chain {
   const provider = new ethers.JsonRpcProvider(config.rpcUrl);
-  const agent = new NonceManager(new ethers.Wallet(config.agentPrivateKey, provider));
-  const mm = new NonceManager(new ethers.Wallet(config.marketMakerPrivateKey, provider));
+  // Serialized sends + explicit nonces = no drift (NonceManager desyncs under
+  // automining rejections, plain wallets hit rare stale-count races).
+  const agent = new NoncedWallet(config.agentPrivateKey, provider);
+  const mm = new NoncedWallet(config.marketMakerPrivateKey, provider);
   return {
     provider,
     agent,
@@ -63,9 +94,10 @@ export async function getBalances(
   chain: Chain,
   who: string
 ): Promise<{ auth: bigint; auds: bigint }> {
-  const erc = new ethers.Contract(chain.tokens.auth, ERC20_ABI, chain.provider);
-  const auth = (await erc.balanceOf(who)) as bigint;
-  const auds = (await erc.balanceOf(chain.tokens.auds)) as bigint;
+  const authContract = new ethers.Contract(chain.tokens.auth, ERC20_ABI, chain.provider);
+  const audsContract = new ethers.Contract(chain.tokens.auds, ERC20_ABI, chain.provider);
+  const auth = (await authContract.balanceOf(who)) as bigint;
+  const auds = (await audsContract.balanceOf(who)) as bigint;
   return { auth, auds };
 }
 
