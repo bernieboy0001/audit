@@ -1,0 +1,124 @@
+import { NonceManager, ethers } from "ethers";
+import { Config } from "./config.js";
+
+export const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+export const AMM_ABI = [
+  "function getReserves() view returns (uint256,uint256)",
+  "function getPrice() view returns (uint256)",
+  "function getAmountOut(uint256,uint256,uint256) view returns (uint256)",
+  "function swap(address,uint256,uint256) returns (uint256)",
+  "function token0() view returns (address)",
+  "function token1() view returns (address)"
+];
+
+export const AUDIT_ABI = [
+  "function commit(bytes32,string) returns (uint256)",
+  "function entryCount() view returns (uint256)",
+  "function latest() view returns (uint256,bytes32,address,string)"
+];
+
+export interface Chain {
+  provider: ethers.JsonRpcProvider;
+  agent: ethers.NonceManager;
+  mm: ethers.NonceManager;
+  tokens: { auth: string; auds: string };
+  amm: string;
+  auditRegistry: string;
+}
+
+export function connectChain(config: Config): Chain {
+  const provider = new ethers.JsonRpcProvider(config.rpcUrl);
+  const agent = new NonceManager(new ethers.Wallet(config.agentPrivateKey, provider));
+  const mm = new NonceManager(new ethers.Wallet(config.marketMakerPrivateKey, provider));
+  return {
+    provider,
+    agent,
+    mm,
+    tokens: config.deployed.tokens,
+    amm: config.deployed.amm,
+    auditRegistry: config.deployed.auditRegistry
+  };
+}
+
+export async function getReserves(chain: Chain): Promise<[bigint, bigint]> {
+  const amm = new ethers.Contract(chain.amm, AMM_ABI, chain.provider);
+  const [r0, r1] = (await amm.getReserves()) as [bigint, bigint];
+  return [r0, r1];
+}
+
+/** AUDS per AUTH, as a plain number. */
+export async function getPriceNum(chain: Chain): Promise<number> {
+  const amm = new ethers.Contract(chain.amm, AMM_ABI, chain.provider);
+  const p = (await amm.getPrice()) as bigint;
+  return Number(p) / 1e18;
+}
+
+export async function getBalances(
+  chain: Chain,
+  who: string
+): Promise<{ auth: bigint; auds: bigint }> {
+  const erc = new ethers.Contract(chain.tokens.auth, ERC20_ABI, chain.provider);
+  const auth = (await erc.balanceOf(who)) as bigint;
+  const auds = (await erc.balanceOf(chain.tokens.auds)) as bigint;
+  return { auth, auds };
+}
+
+export async function getAmountOut(
+  chain: Chain,
+  amountIn: bigint,
+  reserveIn: bigint,
+  reserveOut: bigint
+): Promise<bigint> {
+  const amm = new ethers.Contract(chain.amm, AMM_ABI, chain.provider);
+  return (await amm.getAmountOut(amountIn, reserveIn, reserveOut)) as bigint;
+}
+
+async function approveIfNeeded(
+  chain: Chain,
+  token: string,
+  spender: string,
+  amount: bigint,
+  signer: ethers.AbstractSigner
+): Promise<void> {
+  const erc = new ethers.Contract(token, ERC20_ABI, signer);
+  const signerAddress = await signer.getAddress();
+  const allowance = (await erc.allowance(signerAddress, spender)) as bigint;
+  if (allowance >= amount) return;
+  const tx = await erc.approve(spender, ethers.MaxUint256);
+  await tx.wait();
+}
+
+export async function doSwap(
+  chain: Chain,
+  tokenIn: "auth" | "auds",
+  amountIn: bigint,
+  minOut: bigint,
+  signer: ethers.AbstractSigner = chain.agent
+): Promise<{ txHash: string }> {
+  const amm = new ethers.Contract(chain.amm, AMM_ABI, signer);
+  const tok = chain.tokens[tokenIn];
+  await approveIfNeeded(chain, tok, chain.amm, amountIn, signer);
+  const tx = await amm.swap(tok, amountIn, minOut);
+  const receipt = await tx.wait();
+  if (!receipt) throw new Error("no receipt");
+  return { txHash: receipt.hash };
+}
+
+export async function commitDecision(
+  chain: Chain,
+  hash: string,
+  ref: string
+): Promise<{ txHash: string; entryIndex: number }> {
+  const audit = new ethers.Contract(chain.auditRegistry, AUDIT_ABI, chain.agent);
+  const tx = await audit.commit(hash, ref);
+  const receipt = await tx.wait();
+  if (!receipt) throw new Error("no receipt");
+  const count = (await audit.entryCount()) as bigint;
+  return { txHash: receipt.hash, entryIndex: Number(count) - 1 };
+}

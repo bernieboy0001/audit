@@ -1,0 +1,80 @@
+import { EngineOutput, Signal } from "./types.js";
+
+const clamp = (x: number, lo = -1, hi = 1) => Math.max(lo, Math.min(hi, x));
+
+function mean(xs: number[]): number {
+  return xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+}
+
+function std(xs: number[]): number {
+  if (xs.length < 2) return 0;
+  const m = mean(xs);
+  return Math.sqrt(mean(xs.map((x) => (x - m) ** 2)));
+}
+
+export function logReturns(prices: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    const prev = prices[i - 1];
+    out.push(prev > 0 ? Math.log(prices[i] / prev) : 0);
+  }
+  return out;
+}
+
+/**
+ * Deterministic engine. Numbers come from here and nowhere else —
+ * the LLM writes prose, never figures.
+ */
+export function computeSignals(prices: number[]): EngineOutput {
+  const n = prices.length;
+  const price = prices[n - 1];
+  const prevPrice = n > 1 ? prices[n - 2] : price;
+
+  const ret = (k: number) =>
+    n > k && prices[n - 1 - k] !== 0 ? Math.log(price / prices[n - 1 - k]) : 0;
+
+  const shortRet = ret(Math.min(5, Math.max(1, n - 1)));
+  const mediumRet = ret(Math.min(20, Math.max(1, n - 1)));
+
+  const window = prices.slice(-30);
+  const vol = std(logReturns(window.length > 1 ? window : [price, price]));
+
+  const signals: Signal[] = [];
+  signals.push({
+    key: "short_momentum",
+    value: clamp(shortRet * 200),
+    weight: 0.4,
+    note: `log-return over last ${Math.min(5, Math.max(1, n - 1))} points`
+  });
+  signals.push({
+    key: "medium_momentum",
+    value: clamp(mediumRet * 200),
+    weight: 0.35,
+    note: `log-return over last ${Math.min(20, Math.max(1, n - 1))} points`
+  });
+
+  let ema = price;
+  for (const p of prices.slice(-30)) ema = 0.05 * p + 0.95 * ema;
+  const reversion = clamp(((ema - price) / price) * 50);
+  signals.push({
+    key: "mean_reversion",
+    value: reversion,
+    weight: 0.15,
+    note: "distance from EMA30"
+  });
+
+  const volScore = clamp((vol - 0.02) * 20);
+  signals.push({
+    key: "volatility",
+    value: -Math.abs(volScore),
+    weight: 0.1,
+    note: `30pt log-vol ${(vol * 100).toFixed(2)}%`
+  });
+
+  const score = signals.reduce((a, s) => a + s.value * s.weight, 0);
+  const direction = clamp(score);
+  const expectedBps = Math.round(direction * 150);
+  const grade = score > 0.25 ? "bullish" : score < -0.25 ? "bearish" : "neutral";
+
+  return { signals, direction, expectedBps, score, grade, price, prevPrice };
+}

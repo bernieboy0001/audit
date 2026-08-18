@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: audit-agent
+    runtime: docker
+    plan: starter
+    dockerfilePath: packages/agent/Dockerfile
+    healthCheckPath: /health
+    disk:
+      name: audit-data
+      mountPath: /app/.data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /app/.data
+      - key: CYCLE_MS
+        value: "15000"
+      - key: RPC_URL
+        sync: false
+      - key: AGENT_PRIVATE_KEY
+        sync: false
+      - key: MARKET_MAKER_PRIVATE_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false

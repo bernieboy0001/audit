@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+.data
+**/dist
+**/.next
+**/.next
+**/artifacts
+**/cache
+**/typechain-types
+**/coverage
+.git
+*.log
+.env

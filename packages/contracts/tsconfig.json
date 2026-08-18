@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "types": ["node", "mocha", "chai"],
+    "declaration": false
+  },
+  "include": ["./hardhat.config.ts", "./scripts", "./test"]
+}

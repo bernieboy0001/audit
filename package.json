@@ -1,0 +1,20 @@
+{
+  "name": "audit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AUDIT - the first self-auditing autonomous agent fund. Every decision is committed on-chain and re-scored on outcome.",
+  "workspaces": [
+    "packages/contracts",
+    "packages/agent",
+    "packages/web"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/agent",
+    "typecheck": "npm run typecheck -w packages/agent && npm run typecheck -w packages/web",
+    "test": "npm run test -w packages/contracts && npm run test -w packages/agent",
+    "deploy:local": "npm run deploy:local -w packages/contracts",
+    "deploy:testnet": "npm run deploy:testnet -w packages/contracts",
+    "dev:web": "npm run dev -w packages/web",
+    "agent:run": "npm run agent:run -w packages/agent"
+  }
+}
