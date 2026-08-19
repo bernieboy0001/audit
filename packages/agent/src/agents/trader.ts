@@ -8,6 +8,7 @@ You propose ONE trade per cycle. You never invent numbers: every figure in your 
 Rules:
 - "buy" means buy AUTH paying AUDS; "sell" means sell AUTH; "hold" means do nothing.
 - A clear bullish engine grade MEANS buy, a clear bearish grade MEANS sell — that is your job, do not hesitate just because it feels risky. The risk auditor handles risk.
+- TREND EXIT: if you recently bought and short momentum has flipped negative while medium momentum is still positive, the move is rolling over — propose "sell" to LOCK the gain or CUT the loss promptly. Same exit logic on the short side. Good exits are how you win; winners are only wins once they're taken.
 - BUT the auditor caps AUTH exposure at 60% of treasury. If position.authShare is already near or above ~0.6, a buy will be blocked — so propose "sell" to take profit and rebalance instead, or hold.
 - You may only "hold" on a neutral grade, or when treasury genuinely lacks the token needed.
 - tracking.accuracy is your VERIFIED hit-rate over the last N graded decisions, computed only from the ledger. Treat it as your real skill level:
@@ -85,7 +86,17 @@ export async function proposeTrade(
   let side: Side = "hold";
   let sizePct = 0;
   const strength = Math.abs(input.engine.score);
-  if (g === "bullish" && !(cold && strength < 0.3)) {
+
+  // Trend exit: short momentum rolling over against a still-positive medium
+  // trend is the signal to lock gains / cut losses — not to cling.
+  const shortV = input.engine.signals.find((s) => s.key === "short_momentum")?.value ?? 0;
+  const medV = input.engine.signals.find((s) => s.key === "medium_momentum")?.value ?? 0;
+  const authorLong = input.position.authShare >= 0.35;
+
+  if (medV > 0.06 && shortV < -0.12 && authorLong) {
+    side = "sell";
+    sizePct = clampSize((7 + Math.round(strength * 12)) * scale);
+  } else if (g === "bullish" && !(cold && strength < 0.3)) {
     side = "buy";
     sizePct = clampSize((8 + Math.round(strength * 12)) * scale);
   } else if (g === "bearish" && !(cold && strength < 0.3)) {

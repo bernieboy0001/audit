@@ -59,7 +59,7 @@ export function loadConfig(dataDir?: string): Config {
     },
     cycleMs: Number(process.env.CYCLE_MS || 15000),
     vetoWindowCycles: Number(process.env.VETO_WINDOW_CYCLES || 3),
-    outcomeHorizonCycles: Number(process.env.OUTCOME_HORIZON_CYCLES || 6),
+    outcomeHorizonCycles: Number(process.env.OUTCOME_HORIZON_CYCLES || 5),
     port: Number(process.env.PORT || 8787),
     marketMakerEnabled: process.env.MARKET_MAKER !== "off",
     maxSizePct: Number(process.env.MAX_SIZE_PCT || 20),

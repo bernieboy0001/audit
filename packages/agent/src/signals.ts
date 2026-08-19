@@ -33,7 +33,7 @@ export function computeSignals(prices: number[]): EngineOutput {
   const ret = (k: number) =>
     n > k && prices[n - 1 - k] !== 0 ? Math.log(price / prices[n - 1 - k]) : 0;
 
-  const shortRet = ret(Math.min(5, Math.max(1, n - 1)));
+  const shortRet = ret(Math.min(3, Math.max(1, n - 1)));
   const mediumRet = ret(Math.min(20, Math.max(1, n - 1)));
 
   const window = prices.slice(-30);
@@ -44,7 +44,7 @@ export function computeSignals(prices: number[]): EngineOutput {
     key: "short_momentum",
     value: clamp(shortRet * 200),
     weight: 0.4,
-    note: `log-return over last ${Math.min(5, Math.max(1, n - 1))} points`
+    note: `log-return over last ${Math.min(3, Math.max(1, n - 1))} points`
   });
   signals.push({
     key: "medium_momentum",
