@@ -142,6 +142,13 @@ export interface TrustState {
   history: { ts: number; delta: number; why: string }[];
 }
 
+export interface TrackingState {
+  /** Verified hit-rate over the last 20 graded decisions (engine-computed). */
+  accuracy: number;
+  /** Number of graded decisions in the window. */
+  samples: number;
+}
+
 export interface AppState {
   ts: number;
   cycle: number;
@@ -160,4 +167,5 @@ export interface AppState {
   inspection: InspectionResult | null;
   llm: { enabled: boolean; model: string };
   mode: string;
+  tracking: TrackingState;
 }

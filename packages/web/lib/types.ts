@@ -141,4 +141,5 @@ export interface AppState {
   inspection: InspectionResult | null;
   llm: { enabled: boolean; model: string };
   mode: string;
+  tracking: { accuracy: number; samples: number };
 }

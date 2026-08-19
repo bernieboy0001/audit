@@ -16,6 +16,7 @@ import { resolvePendingOutcomes } from "./outcome.js";
 import { proposeTrade } from "./agents/trader.js";
 import { reviewProposal } from "./agents/auditor.js";
 import { narrateDecision, narrateExecution } from "./agents/narrator.js";
+import { calibrateConfidence, rollingAccuracy } from "./learn.js";
 import {
   DecisionView,
   ExecutionView,
@@ -141,6 +142,8 @@ export async function cycle(
     config.outcomeHorizonCycles
   );
   if (outcomes.length) store.recentOutcomes.push(...outcomes);
+  // 1b. The AI's memory: recompute its verified hit-rate and bake it in.
+  store.tracking = rollingAccuracy(store.ledger.readAll());
 
   // 2. Execute a decision whose veto window has passed (if not human-vetoed).
   if (store.pending && cycleNo >= store.pending.dueCycle) {
@@ -156,6 +159,7 @@ export async function cycle(
     const proposal = await proposeTrade(config, {
       engine,
       treasury,
+      tracking: store.tracking,
       recentSides: store.ledger
         .readAll()
         .filter((e) => e.kind === "proposal")
@@ -184,7 +188,8 @@ export async function cycle(
     const review = await reviewProposal(config, {
       proposal: finalProposal,
       engine,
-      treasury
+      treasury,
+      tracking: store.tracking
     });
 
     const decision: DecisionView = {
@@ -195,7 +200,7 @@ export async function cycle(
       sizePct: finalProposal.sizePct,
       entryPrice: price,
       expectedBps: engine.expectedBps,
-      confidence: engine.confidence,
+      confidence: calibrateConfidence(engine.confidence, store.tracking),
       traderReason: finalProposal.reason,
       traderTools: finalProposal.toolsUsed,
       riskFlags: finalProposal.riskFlags,

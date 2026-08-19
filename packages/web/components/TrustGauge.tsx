@@ -59,11 +59,18 @@ function GaugeArc({ value, color }: { value: number; color: string }) {
   );
 }
 
-export default function TrustGauge({ trust }: { trust: TrustState }) {
+export default function TrustGauge({
+  trust,
+  tracking
+}: {
+  trust: TrustState;
+  tracking: { accuracy: number; samples: number };
+}) {
   const score = trust.score;
   const { color, word } = classify(score);
   const goodBusters =
     trust.vetoes > 0 && trust.vetoCorrect > trust.vetoes - trust.vetoCorrect;
+  const cold = tracking.samples >= 8 && tracking.accuracy <= 0.45;
 
   return (
     <div className="panel fade-in">
@@ -98,6 +105,24 @@ export default function TrustGauge({ trust }: { trust: TrustState }) {
             {trust.pending > 0 ? ` · ${trust.pending} still waiting` : ""}
           </div>
         </div>
+      </div>
+      <div
+        className={`tracking-badge ${cold ? "cold" : tracking.accuracy >= 0.5 ? "hot" : ""}`}
+      >
+        <span className="kick">verified hit-rate</span>
+        <span className="mono">
+          {tracking.samples > 0 ? `${Math.round(tracking.accuracy * 100)}%` : "—"}
+        </span>
+        <span className="small muted">
+          {tracking.samples === 0
+            ? "not enough graded calls yet"
+            : `last ${tracking.samples} graded calls · ` +
+              (cold
+                ? "cold streak → it shrinks size & the gate tightens"
+                : tracking.accuracy >= 0.5
+                  ? "healthy → it sizes bets from this"
+                  : "warming up")}
+        </span>
       </div>
       <div className="trust-readout">
         {score > 50 ? "+" : ""}

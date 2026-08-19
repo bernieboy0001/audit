@@ -239,8 +239,86 @@ a:hover {
 @media (max-width: 1200px) {
   .layout {
     grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+  }
+  .layout > section:nth-child(1) { order: 2; }
+  .layout > section:nth-child(2) { order: 3; }
+  .layout > section:nth-child(3) { order: 1; }
+}
+
+@media (hover: hover) {
+  .panel {
+    transition: border-color 0.2s ease, box-shadow 0.3s ease, transform 0.2s ease;
+  }
+  .panel:hover {
+    border-color: rgba(120, 130, 160, 0.55);
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(120, 130, 160, 0.08);
+  }
+  .panel-accent:hover {
+    border-color: rgba(255, 180, 84, 0.7);
+    box-shadow: 0 8px 32px rgba(255, 180, 84, 0.12), 0 0 0 1px rgba(255, 180, 84, 0.2);
   }
 }
+
+@media (max-width: 560px) {
+  .layout {
+    padding: 10px 10px;
+    gap: 10px;
+  }
+  .gaugewrap {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .statgrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .stat .v {
+    font-size: 16px;
+  }
+  .topstats {
+    flex-wrap: wrap;
+  }
+}
+
+.tracking-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 10px 0 8px 0;
+  background: rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.tracking-badge:hover {
+  border-color: rgba(55, 211, 153, 0.5);
+  background: rgba(55, 211, 153, 0.04);
+}
+.tracking-badge.cold {
+  border-color: rgba(255, 93, 108, 0.5);
+}
+.tracking-badge.cold:hover {
+  border-color: rgba(255, 93, 108, 0.8);
+  background: rgba(255, 93, 108, 0.05);
+}
+.tracking-badge .kick {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tracking-badge .mono {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.tracking-badge.cold .mono { color: #ff5d6c; }
+.tracking-badge:not(.cold) .mono { color: #37d399; }
 
 .panel {
   background: var(--panel);
@@ -461,6 +539,26 @@ a:hover {
   border-radius: 8px;
   background: var(--panel-2);
   padding: 9px 11px;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+@media (hover: hover) {
+  .entry:hover {
+    border-color: rgba(120, 130, 160, 0.6);
+    background: rgba(255, 255, 255, 0.03);
+    transform: translateX(2px);
+  }
+  .planbox {
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .planbox.trader:hover {
+    border-color: rgba(72, 128, 255, 0.55);
+    background: rgba(72, 128, 255, 0.04);
+  }
+  .planbox.audit:hover {
+    border-color: rgba(55, 211, 153, 0.5);
+    background: rgba(55, 211, 153, 0.04);
+  }
 }
 
 .outcome-hit {

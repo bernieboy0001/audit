@@ -3,6 +3,7 @@ import * as path from "path";
 import { Config } from "./config.js";
 import { Ledger } from "./ledger.js";
 import { computeTrust } from "./trust.js";
+import { Tracking } from "./learn.js";
 import {
   AppState,
   DecisionView,
@@ -29,6 +30,7 @@ export class Store {
   treasury: { auth: string; auds: string } | null = null;
   engine: EngineOutput | null = null;
   lastInspection: InspectionResult | null = null;
+  tracking: Tracking = { accuracy: 0.5, samples: 0 };
   mode: string;
 
   private stateFile: string;
@@ -111,7 +113,8 @@ export class Store {
         enabled: this.config.llm.enabled,
         model: this.config.llm.model
       },
-      mode: this.mode
+      mode: this.mode,
+      tracking: this.tracking
     };
   }
 

@@ -1,6 +1,7 @@
 import { Config } from "../config.js";
 import { llmJson } from "../llm.js";
-import { EngineOutput } from "../types.js";
+import { marginOfSafety } from "../learn.js";
+import { EngineOutput, TrackingState } from "../types.js";
 import { Proposal } from "./trader.js";
 
 const AUDITOR_SYSTEM = `You are the RISK AUDITOR of AUDIT, an autonomous fund. The TRADER agent has proposed a trade.
@@ -9,6 +10,7 @@ Vetoes are decided ONLY by machine-checkable rules — you do not block, you onl
 2. engine |score| < 0.25 on a non-hold (trading noise)
 3. post-trade AUTH exposure would exceed 50% of treasury
 4. deterministic risk gate has fired (high volatility + disagreeing momentum, or a spike with no confirmed trend)
+5. tracking.accuracy below ~0.45 means the AI is on a cold streak — hard rules are enforced even more strictly
 Beyond that, list soft concerns in "checks" so the decision record is honest, but they must NOT flip your verdict.
 Respond ONLY with strict JSON:
 {"verdict":"approved"|"vetoed","reason":"...","checks":["..."]}`;
@@ -17,6 +19,7 @@ export interface ProposalInput {
   proposal: Proposal;
   engine: EngineOutput;
   treasury: { auth: number; auds: number };
+  tracking: TrackingState;
 }
 
 export interface Review {
@@ -33,7 +36,8 @@ export interface Review {
  */
 function deterministicRiskGate(
   engine: EngineOutput,
-  proposal: Proposal
+  proposal: Proposal,
+  tracking: TrackingState
 ): { veto: boolean; reasons: string[] } {
   if (proposal.side === "hold") return { veto: false, reasons: [] };
   const sig = (k: string) =>
@@ -42,13 +46,18 @@ function deterministicRiskGate(
   const mediumMom = sig("medium_momentum");
   const vol = sig("volatility");
   const reasons: string[] = [];
+  // On a cold streak the safety margin widens: the gate catches more,
+  // protecting capital while the model re-proves itself.
+  const wide = marginOfSafety(tracking);
+  const volThresh = -0.4 / wide;
+  const spikeThresh = 0.7 / wide;
 
-  if (vol <= -0.4 && Math.abs(shortMom - mediumMom) >= 0.5) {
+  if (vol <= volThresh && Math.abs(shortMom - mediumMom) >= 0.5) {
     reasons.push(
       "volatility is high and short vs medium momentum disagree (whipsaw zone)"
     );
   }
-  if (Math.abs(shortMom) >= 0.7 && Math.abs(mediumMom) < 0.2) {
+  if (Math.abs(shortMom) >= spikeThresh && Math.abs(mediumMom) < 0.2) {
     reasons.push("the move is a short spike with no confirmed trend");
   }
 
@@ -90,7 +99,7 @@ export async function reviewProposal(
 
   const json = await llmJson(config.llm, AUDITOR_SYSTEM, JSON.stringify(input));
   const llmReason = json?.reason ? String(json.reason) : "";
-  const gate = deterministicRiskGate(engine, proposal);
+  const gate = deterministicRiskGate(engine, proposal, input.tracking);
   const veto = hard.length > 0 || gate.veto;
 
   let verdict: "approved" | "vetoed";

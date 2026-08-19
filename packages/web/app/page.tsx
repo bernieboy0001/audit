@@ -161,7 +161,9 @@ export default function Page() {
 
       <main className="layout">
         <section>
-          {state && <TrustGauge trust={state.trust} />}
+          {state && (
+            <TrustGauge trust={state.trust} tracking={state.tracking ?? { accuracy: 0.5, samples: 0 }} />
+          )}
           {state && <VaultPanel state={state} />}
           <HowItWorks />
         </section>
