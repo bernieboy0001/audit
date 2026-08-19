@@ -10,7 +10,10 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: { chainId: 31337 },
     baseSepolia: {
-      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      // publicnode is more reliable than the official sepolia.base.org RPC.
+      // No fixed gasPrice: ethers bumps its own re-broadcast fee on drop, and a
+      // forced price below that bump causes "replacement transaction underpriced".
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://base-sepolia-rpc.publicnode.com",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },

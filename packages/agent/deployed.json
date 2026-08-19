@@ -1,0 +1,18 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0xf86adE1d77b3044c7498a430f7f8327804024667",
+  "agent": "0x0213E0E289Cee20eFC1B851dd48F1C6F06F79Ac2",
+  "marketMaker": "0xb79D53ca923bB9d09F892866613A4b0ec753Fca4",
+  "tokens": {
+    "auth": "0x21D3C381eb5c1Da6cc971F5EA5097d55a8C2Be6c",
+    "auds": "0xDFbE9153A38f322AFf10Ecf23ccE15ABaB608244"
+  },
+  "amm": "0x38275cB2dF30f3dCEa353bf0C4DE6fb62Ad49049",
+  "auditRegistry": "0xC995fCcC57892a5b87dA36c258Fb1c6fC3339DDE",
+  "initialLiquidity": {
+    "auth": "1000000000000000000000000",
+    "auds": "100000000000000000000000"
+  },
+  "genesisHash": "0x70cba9c4955f6d10891197f2d43c11d541b385c8d210313eb97ee391689e23b9"
+}
