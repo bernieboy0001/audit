@@ -15,6 +15,7 @@ export interface EngineOutput {
   grade: "bullish" | "bearish" | "neutral";
   price: number;
   prevPrice: number;
+  confidence: number;
 }
 
 export interface DecisionView {
@@ -25,6 +26,7 @@ export interface DecisionView {
   sizePct: number;
   entryPrice: number;
   expectedBps: number;
+  confidence: number;
   traderReason: string;
   traderTools: string[];
   riskFlags: string[];
@@ -62,6 +64,7 @@ export interface PendingDecision {
   sizePct: number;
   entryPrice: number;
   expectedBps: number;
+  confidence: number;
   dueCycle: number;
   windowCycles: number;
   createdAt: number;
@@ -82,6 +85,20 @@ export interface TrustState {
   history: { ts: number; delta: number; why: string }[];
 }
 
+export interface InspectionResult {
+  target: string;
+  isContract: boolean;
+  agent: string;
+  eth?: string;
+  symbol?: string;
+  name?: string;
+  decimals?: number | null;
+  inMarket?: string;
+  price?: number;
+  agentBalance?: string;
+  note: string;
+}
+
 export type LedgerKind =
   | "genesis"
   | "proposal"
@@ -92,7 +109,8 @@ export type LedgerKind =
   | "human_veto"
   | "risk_violation"
   | "narration"
-  | "commit";
+  | "commit"
+  | "inspection";
 
 export interface LedgerEntry {
   kind: LedgerKind;
@@ -119,5 +137,6 @@ export interface AppState {
   recentOutcomes: OutcomeView[];
   recentEntries: LedgerEntry[];
   humanVetoes: string[];
+  inspection: InspectionResult | null;
   mode: string;
 }

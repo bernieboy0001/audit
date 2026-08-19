@@ -28,3 +28,24 @@ export async function humanVeto(decisionId: string): Promise<boolean> {
     return false;
   }
 }
+
+export type InspectResult =
+  | { ok: true; data: import("./types").InspectionResult }
+  | { ok: false; error: string };
+
+export async function inspectTarget(target: string): Promise<InspectResult> {
+  try {
+    const r = await fetch(`${AGENT_URL}/inspect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target })
+    });
+    if (!r.ok) {
+      const body = (await r.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, error: body.error ?? `HTTP ${r.status}` };
+    }
+    return { ok: true, data: (await r.json()) as import("./types").InspectionResult };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

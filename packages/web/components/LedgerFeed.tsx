@@ -72,6 +72,16 @@ const KIND_META: Record<
     label: "promise recorded on-chain",
     cls: "buy",
     summary: (e) => `intent hashed -> public registry row #${(e.data as any).chainEntry}`
+  },
+  inspection: {
+    label: "audited on request",
+    cls: "buy",
+    summary: (e) => {
+      const d = e.data as any;
+      const sym = String(d.symbol ?? "address");
+      const inMarket = d.inMarket ? ` — ${d.inMarket} is AUDIT's market token` : "";
+      return `a human asked AUDIT to audit ${sym}${inMarket}`;
+    }
   }
 };
 

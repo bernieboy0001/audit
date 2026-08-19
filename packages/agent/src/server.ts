@@ -1,6 +1,8 @@
 import { createServer } from "node:http";
 import { Config } from "./config.js";
+import { Chain } from "./chain.js";
 import { Store } from "./store.js";
+import { inspectAddress } from "./inspect.js";
 
 function send(
   res: import("node:http").ServerResponse,
@@ -16,7 +18,7 @@ function send(
   res.end(JSON.stringify(body));
 }
 
-export function startServer(config: Config, store: Store): void {
+export function startServer(config: Config, store: Store, chain: Chain): void {
   const server = createServer((req, res) => {
     if (req.method === "OPTIONS") return send(res, 204, {});
     const url = new URL(req.url ?? "/", `http://localhost:${config.port}`);
@@ -25,7 +27,7 @@ export function startServer(config: Config, store: Store): void {
       return send(res, 200, {
         service: "AUDIT agent",
         status: "running",
-        endpoints: ["/health", "/state", "/ledger", "/human-veto", "/run-cycle"]
+        endpoints: ["/health", "/state", "/ledger", "/human-veto", "/run-cycle", "/inspect"]
       });
     }
     if (req.method === "GET" && url.pathname === "/health") {
@@ -55,6 +57,28 @@ export function startServer(config: Config, store: Store): void {
     if (req.method === "POST" && url.pathname === "/run-cycle") {
       store.forceRun = true;
       return send(res, 200, { ok: true });
+    }
+    if (req.method === "POST" && url.pathname === "/inspect") {
+      let body = "";
+      req.on("data", (c) => (body += c));
+      req.on("end", () => {
+        (async () => {
+          try {
+            const { target } = JSON.parse(body || "{}");
+            if (!target || typeof target !== "string") {
+              return send(res, 400, { error: "send a target address" });
+            }
+            const result = await inspectAddress(chain, target);
+            store.recordInspection(result);
+            return send(res, 200, result);
+          } catch (e) {
+            return send(res, 400, {
+              error: `couldn't inspect that address: ${(e as Error).message}`
+            });
+          }
+        })();
+      });
+      return;
     }
     return send(res, 404, { error: "not found" });
   });

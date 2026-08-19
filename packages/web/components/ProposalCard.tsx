@@ -64,6 +64,9 @@ export default function ProposalCard({
             <span className="small muted">
               {pending.sizePct}% of its money · price {fmtPrice(pending.entryPrice)}
             </span>
+            <span className="small muted mono">
+              engine confidence ≈ {Math.round((pending.confidence ?? 0.5) * 100)}%
+            </span>
             <span className="badge warn">waiting for your answer</span>
           </div>
 
@@ -115,6 +118,9 @@ export default function ProposalCard({
             </span>
             <span className="small muted">
               {lastDecision.sizePct}% of its money · price {fmtPrice(lastDecision.entryPrice)}
+            </span>
+            <span className="small muted mono">
+              engine confidence ≈ {Math.round((lastDecision.confidence ?? 0.5) * 100)}%
             </span>
             <span className={`badge ${lastDecision.verdict}`}>
               {lastDecision.verdict === "approved" ? "allowed to act" : "blocked"}

@@ -8,6 +8,7 @@ import {
   DecisionView,
   EngineOutput,
   ExecutionView,
+  InspectionResult,
   OutcomeView,
   PendingDecision,
   PricePoint,
@@ -27,6 +28,7 @@ export class Store {
   reserves: { auth: string; auds: string } | null = null;
   treasury: { auth: string; auds: string } | null = null;
   engine: EngineOutput | null = null;
+  lastInspection: InspectionResult | null = null;
   mode: string;
 
   private stateFile: string;
@@ -76,6 +78,15 @@ export class Store {
     return true;
   }
 
+  recordInspection(r: InspectionResult): void {
+    this.lastInspection = r;
+    this.ledger.append(
+      "inspection",
+      { target: r.target, symbol: r.symbol ?? "—", inMarket: r.inMarket ?? null },
+      { cycle: this.cycle }
+    );
+  }
+
   snapshot(): AppState {
     const last = this.priceHistory[this.priceHistory.length - 1];
     const prev = this.priceHistory[this.priceHistory.length - 2];
@@ -95,6 +106,7 @@ export class Store {
       recentOutcomes: this.recentOutcomes.slice(-10),
       recentEntries: this.ledger.tail(40),
       humanVetoes: this.humanVetoes,
+      inspection: this.lastInspection,
       mode: this.mode
     };
   }

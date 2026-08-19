@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import BrandMark from "@/components/BrandMark";
+import PowerUp from "@/components/PowerUp";
 import TrustGauge from "@/components/TrustGauge";
 import PriceChart, { Pt } from "@/components/PriceChart";
 import ProposalCard from "@/components/ProposalCard";
 import LedgerFeed from "@/components/LedgerFeed";
 import OutcomeList from "@/components/OutcomeList";
 import EnginePanel from "@/components/EnginePanel";
+import InspectPanel from "@/components/InspectPanel";
 import { fetchState } from "@/lib/api";
 import { fmtPrice } from "@/lib/format";
 import type { AppState } from "@/lib/types";
@@ -60,6 +63,7 @@ export default function Page() {
   const [connected, setConnected] = useState(false);
   const [lastSeen, setLastSeen] = useState<number | null>(null);
   const [connError, setConnError] = useState<string | null>(null);
+  const [everOnline, setEverOnline] = useState(false);
   const [points, setPoints] = useState<Pt[]>([]);
   const lastCycle = useRef<number>(-1);
 
@@ -68,6 +72,7 @@ export default function Page() {
       const s = await fetchState();
       setState(s);
       setConnected(true);
+      setEverOnline(true);
       setConnError(null);
       setLastSeen(s.ts);
       if (s.cycle !== lastCycle.current && s.price !== null) {
@@ -97,7 +102,10 @@ export default function Page() {
     <>
       <header className="topbar">
         <div className="brand">
-          <span className="brandlogo">AUDIT<em>·</em></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <BrandMark size={24} />
+            <span className="brandlogo">AUDIT<em>·</em></span>
+          </span>
           <span className="brandsub">a self-auditing AI fund · live demo</span>
         </div>
         <div className="topstats">
@@ -114,21 +122,27 @@ export default function Page() {
         </div>
       </header>
 
-      <div className={`hero ${pending ? "attention" : ""}`}>
-        <div className="heromark">◆</div>
-        <div style={{ minWidth: 0 }}>
-          <div className="hero-kicker">what&apos;s happening right now</div>
-          <div className="hero-line">{statusSentence(state)}</div>
-          {pending && (
-            <div className="hero-hint">
-              You are the human override. Press STOP on the decision desk and the
-              record of what you stopped stays on-chain — forever.
-            </div>
-          )}
+      {!everOnline ? (
+        <div className="hero boothero">
+          <PowerUp />
         </div>
-      </div>
+      ) : (
+        <div className={`hero ${pending ? "attention" : ""}`}>
+          <div className="heromark">◆</div>
+          <div style={{ minWidth: 0 }}>
+            <div className="hero-kicker">what&apos;s happening right now</div>
+            <div className="hero-line">{statusSentence(state)}</div>
+            {pending && (
+              <div className="hero-hint">
+                You are the human override. Press STOP on the decision desk and the
+                record of what you stopped stays on-chain — forever.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-      {connError && !online && (
+      {everOnline && connError && !online && (
         <div className="conn-error">
           {connError} — Render&apos;s free tier sleeps after ~15 min idle and takes
           ~60 s to wake. This banner clears itself.
@@ -144,6 +158,7 @@ export default function Page() {
         <section>
           <PriceChart points={points} />
           {state && <OutcomeList outcomes={state.recentOutcomes} />}
+          <InspectPanel />
         </section>
 
         <section>
@@ -161,8 +176,25 @@ export default function Page() {
         </div>
       )}
 
-      <footer className="footer mono">
-        AUDIT · the black box recorder for AI agents · crafted for the Orion Builder Hackathon
+      <footer className="footer">
+        <div className="footer-row">
+          <span className="footer-brand">
+            <BrandMark size={20} />
+            <b>AUDIT</b>
+          </span>
+          <span>
+            MEASUREMENTS, NOT ADVICE — nothing here is a recommendation to buy or
+            sell anything.
+          </span>
+          <span className="footer-links mono">
+            <a href="https://github.com/bernieboy0001/audit" target="_blank" rel="noreferrer">GitHub</a>
+            <a href="https://sepolia.basescan.org/address/0xC995fCcC57892a5b87dA36c258Fb1c6fC3339DDE" target="_blank" rel="noreferrer">On-chain registry</a>
+            <a href="https://audit-agent-b1sx.onrender.com/state" target="_blank" rel="noreferrer">Raw feed</a>
+          </span>
+        </div>
+        <div className="footer-sub mono">
+          The black box recorder for AI agents · built for the Orion Builder Hackathon
+        </div>
       </footer>
     </>
   );

@@ -31,7 +31,7 @@ async function main(): Promise<void> {
 
   startMarketMaker(chain, config);
   startLoop(chain, config, store);
-  startServer(config, store);
+  startServer(config, store, chain);
 
   const shutdown = () => {
     console.log("\n[AUDIT] shutting down");

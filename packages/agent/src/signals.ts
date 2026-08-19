@@ -76,5 +76,23 @@ export function computeSignals(prices: number[]): EngineOutput {
   const expectedBps = Math.round(direction * 150);
   const grade = score > 0.25 ? "bullish" : score < -0.25 ? "bearish" : "neutral";
 
-  return { signals, direction, expectedBps, score, grade, price, prevPrice };
+  // Confidence is an engine estimate (not a model opinion): base 0.5, raised
+  // by signal strength and by short/medium momentum agreeing. It's published
+  // on every decision and then graded against the actual outcome.
+  const strength = Math.min(1, Math.abs(direction));
+  const shortV = signals.find((s) => s.key === "short_momentum")?.value ?? 0;
+  const medV = signals.find((s) => s.key === "medium_momentum")?.value ?? 0;
+  const agreement = 1 - Math.min(1, Math.abs(shortV - medV));
+  const confidence = Math.min(0.95, 0.5 + 0.28 * strength + 0.14 * agreement);
+
+  return {
+    signals,
+    direction,
+    expectedBps,
+    score,
+    grade,
+    price,
+    prevPrice,
+    confidence
+  };
 }
