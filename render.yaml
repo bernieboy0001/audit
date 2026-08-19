@@ -1,14 +1,13 @@
 services:
   - type: web
     name: audit-agent
+    # Free tier (512 MB / 0.1 CPU / $0). No persistent disk needed: the
+    # on-chain AuditRegistry is the durable ledger; local state is rebuilt
+    # from the chain if the instance restarts.
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: packages/agent/Dockerfile
     healthCheckPath: /health
-    disk:
-      name: audit-data
-      mountPath: /app/.data
-      sizeGB: 1
     envVars:
       - key: DATA_DIR
         value: /app/.data
