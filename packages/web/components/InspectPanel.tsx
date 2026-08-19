@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { inspectTarget } from "@/lib/api";
+import { inspectMainnet } from "@/lib/chainInspect";
 import { fmtPrice, shortAddr } from "@/lib/format";
 import type { InspectionResult } from "@/lib/types";
 
-const CHIPS = [
-  { label: "AUTH (AUDIT's token)", addr: "0x21D3C381eb5c1Da6cc971F5EA5097d55a8C2Be6c" },
-  { label: "AI's wallet", addr: "0x0213E0E289Cee20eFC1B851dd48F1C6F06F79Ac2" },
-  { label: "USDC · mainnet", addr: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
-  { label: "WETH · mainnet", addr: "0x4200000000000000000000000000000000000006" }
+const CHIPS: { label: string; addr: string; net: "agent" | "mainnet" }[] = [
+  { label: "AUTH (AUDIT's token)", addr: "0x21D3C381eb5c1Da6cc971F5EA5097d55a8C2Be6c", net: "agent" },
+  { label: "AI's wallet", addr: "0x0213E0E289Cee20eFC1B851dd48F1C6F06F79Ac2", net: "agent" },
+  { label: "USDC · mainnet", addr: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", net: "mainnet" },
+  { label: "WETH · mainnet", addr: "0x4200000000000000000000000000000000000006", net: "mainnet" }
 ];
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
@@ -29,18 +30,28 @@ export default function InspectPanel() {
   const [result, setResult] = useState<InspectionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async (addr: string) => {
+  const run = async (addr: string, net: "agent" | "mainnet") => {
     if (!addr.trim()) return;
     setBusy(true);
     setError(null);
-    const r = await inspectTarget(addr.trim());
-    setBusy(false);
-    if (r.ok) {
-      setResult(r.data);
-    } else {
-      setResult(null);
-      setError(r.error);
+    setResult(null);
+    try {
+      let r: InspectionResult | null = null;
+      if (net === "mainnet") {
+        r = await inspectMainnet(addr.trim());
+      } else {
+        const res = await inspectTarget(addr.trim());
+        r = res.ok ? res.data : null;
+      }
+      if (r) {
+        setResult(r);
+      } else {
+        setError("couldn't audit that through the agent — is it online?");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     }
+    setBusy(false);
   };
 
   return (
@@ -58,13 +69,13 @@ export default function InspectPanel() {
           placeholder="0x… contract or wallet address"
           value={target}
           onChange={(e) => setTarget(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && run(target)}
+          onKeyDown={(e) => e.key === "Enter" && run(target, target.startsWith("0x21D3") || target === CHIPS[1].addr ? ("agent" as const) : ("mainnet" as const))}
           aria-label="address to audit"
           spellCheck={false}
         />
         <button
           className="term-button mono"
-          onClick={() => run(target)}
+          onClick={() => run(target, target.startsWith("0x21D3") || target === CHIPS[1].addr ? ("agent" as const) : ("mainnet" as const))}
           disabled={busy || !target.trim()}
         >
           {busy ? "reading chain…" : "AUDIT →"}
@@ -74,7 +85,7 @@ export default function InspectPanel() {
       <div className="row" style={{ margin: "8px 0 12px" }}>
         <span className="small muted">try:</span>
         {CHIPS.map((c) => (
-          <button key={c.addr} className="chip mono" onClick={() => { setTarget(c.addr); run(c.addr); }}>
+          <button key={c.addr} className="chip mono" onClick={() => { setTarget(c.addr); run(c.addr, c.net); }}>
             {c.label}
           </button>
         ))}
