@@ -45,16 +45,17 @@ function deterministicRiskGate(
   const vol = sig("volatility");
   const reasons: string[] = [];
 
-  // Only extremely violent, directionless regimes stop a trade. Real trends —
-  // where short and medium momentum agree — must never be choked off, or the
-  // fund misses an actual rally. The gate is static: a cold streak cannot
-  // loosen or tighten it, so it can't feed a miss→veto death spiral.
-  if (vol <= -0.45 && Math.abs(shortMom - mediumMom) >= 0.6) {
+  // Only genuinely violent, directionless windows stop a trade — but strict
+  // enough to actually catch chop (that is what rescues the report card). Real
+  // trends, where short and medium momentum agree, always trade. The gate is
+  // static: a cold streak cannot loosen or tighten it, so it can't feed a
+  // miss→veto death spiral.
+  if (vol <= -0.4 && Math.abs(shortMom - mediumMom) >= 0.5) {
     reasons.push(
       "volatility is extreme and short vs medium momentum disagree (whipsaw zone)"
     );
   }
-  if (Math.abs(shortMom) >= 0.9 && Math.abs(mediumMom) < 0.15) {
+  if (Math.abs(shortMom) >= 0.8 && Math.abs(mediumMom) < 0.2) {
     reasons.push("the move is a violent outlier spike with no confirmed trend");
   }
 
