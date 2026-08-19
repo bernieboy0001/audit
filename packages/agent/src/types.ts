@@ -152,6 +152,13 @@ export interface TrackingState {
   samples: number;
 }
 
+export interface ValuePoint {
+  cycle: number;
+  ts: number;
+  /** total treasury value in AUDS terms at that cycle */
+  value: number;
+}
+
 export interface AppState {
   ts: number;
   cycle: number;
@@ -171,4 +178,5 @@ export interface AppState {
   llm: { enabled: boolean; model: string };
   mode: string;
   tracking: TrackingState;
+  valueHistory: ValuePoint[];
 }

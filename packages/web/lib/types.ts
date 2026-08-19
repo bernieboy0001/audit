@@ -144,4 +144,5 @@ export interface AppState {
   llm: { enabled: boolean; model: string };
   mode: string;
   tracking: { accuracy: number; samples: number };
+  valueHistory: { cycle: number; ts: number; value: number }[];
 }

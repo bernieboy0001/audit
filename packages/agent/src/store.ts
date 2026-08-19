@@ -13,13 +13,15 @@ import {
   OutcomeView,
   PendingDecision,
   PricePoint,
-  TrustState
+  TrustState,
+  ValuePoint
 } from "./types.js";
 
 export class Store {
   ledger: Ledger;
   cycle = 0;
   priceHistory: PricePoint[] = [];
+  valueHistory: ValuePoint[] = [];
   pending: PendingDecision | null = null;
   humanVetoes: string[] = [];
   lastDecision: DecisionView | null = null;
@@ -51,9 +53,24 @@ export class Store {
         this.priceHistory = [];
       }
     }
+    if (fs.existsSync(this.stateFile)) {
+      try {
+        const s = JSON.parse(fs.readFileSync(this.stateFile, "utf8"));
+        if (Array.isArray(s.valueHistory)) this.valueHistory = s.valueHistory;
+      } catch {
+        // fresh run — value history accumulates from here
+      }
+    }
     const entries = this.ledger.readAll();
     if (entries.length) {
       this.cycle = Math.max(...entries.map((e) => e.cycle), this.cycle);
+    }
+  }
+
+  pushValue(v: ValuePoint): void {
+    this.valueHistory.push(v);
+    if (this.valueHistory.length > 3000) {
+      this.valueHistory = this.valueHistory.slice(-1500);
     }
   }
 
@@ -114,7 +131,8 @@ export class Store {
         model: this.config.llm.model
       },
       mode: this.mode,
-      tracking: this.tracking
+      tracking: this.tracking,
+      valueHistory: this.valueHistory.slice(-400)
     };
   }
 

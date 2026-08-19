@@ -136,6 +136,7 @@ export async function cycle(
   const authValue = treasury.auth * price;
   const authShare =
     authValue + treasury.auds > 0 ? authValue / (authValue + treasury.auds) : 0;
+  store.pushValue({ cycle: cycleNo, ts: Date.now(), value: authValue + treasury.auds });
 
   // 1. Re-score decisions that are old enough.
   const outcomes = await resolvePendingOutcomes(
