@@ -87,6 +87,7 @@ export interface TrustState {
 
 export interface InspectionResult {
   target: string;
+  chain: string;
   isContract: boolean;
   agent: string;
   eth?: string;
@@ -138,5 +139,6 @@ export interface AppState {
   recentEntries: LedgerEntry[];
   humanVetoes: string[];
   inspection: InspectionResult | null;
+  llm: { enabled: boolean; model: string };
   mode: string;
 }

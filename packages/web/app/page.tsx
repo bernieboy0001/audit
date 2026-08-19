@@ -10,6 +10,7 @@ import LedgerFeed from "@/components/LedgerFeed";
 import OutcomeList from "@/components/OutcomeList";
 import EnginePanel from "@/components/EnginePanel";
 import InspectPanel from "@/components/InspectPanel";
+import VaultPanel from "@/components/VaultPanel";
 import { fetchState } from "@/lib/api";
 import { fmtPrice } from "@/lib/format";
 import type { AppState } from "@/lib/types";
@@ -119,6 +120,15 @@ export default function Page() {
           <span className="pill">
             AUTH price <b>{price !== null && price !== undefined ? fmtPrice(price) : "…"}</b>
           </span>
+          {state?.llm?.enabled ? (
+            <span className="pill ok">
+              <span className="pulse on" /> AI reasoning live
+            </span>
+          ) : (
+            <span className="pill">
+              AI reasoning <b>offline</b>
+            </span>
+          )}
         </div>
       </header>
 
@@ -152,6 +162,7 @@ export default function Page() {
       <main className="layout">
         <section>
           {state && <TrustGauge trust={state.trust} />}
+          {state && <VaultPanel state={state} />}
           <HowItWorks />
         </section>
 

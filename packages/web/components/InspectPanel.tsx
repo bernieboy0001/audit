@@ -7,7 +7,9 @@ import type { InspectionResult } from "@/lib/types";
 
 const CHIPS = [
   { label: "AUTH (AUDIT's token)", addr: "0x21D3C381eb5c1Da6cc971F5EA5097d55a8C2Be6c" },
-  { label: "AI's wallet", addr: "0x0213E0E289Cee20eFC1B851dd48F1C6F06F79Ac2" }
+  { label: "AI's wallet", addr: "0x0213E0E289Cee20eFC1B851dd48F1C6F06F79Ac2" },
+  { label: "USDC · mainnet", addr: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
+  { label: "WETH · mainnet", addr: "0x4200000000000000000000000000000000000006" }
 ];
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
@@ -45,8 +47,9 @@ export default function InspectPanel() {
     <div className="panel">
       <h3>Audit anything — give AUDIT an address</h3>
       <p className="sub">
-        Paste any address on this chain. It reads the truth straight from the
-        contract — and it will not invent a price it can&apos;t verify.
+        Paste any address on Base mainnet or the testnet. It reads the truth
+        straight from the contract — and it will not invent a price it can&apos;t
+        verify.
       </p>
 
       <div className="inspectbar">
@@ -82,6 +85,7 @@ export default function InspectPanel() {
       {result && (
         <div className="inspect-result">
           <Row k="address" v={shortAddr(result.target)} />
+          <Row k="read on" v={result.chain} />
           <Row k="type" v={result.isContract ? "smart contract" : "wallet"} />
           {result.inMarket && (
             <>
@@ -108,8 +112,8 @@ export default function InspectPanel() {
 
       {!result && !error && (
         <div className="small muted">
-          Hint: hit the chips above, or paste any address — the record of this
-          audit is appended to the black box.
+          Hint: hit the chips above (testnet + mainnet tokens), or paste any
+          address — the record of this audit is appended to the black box.
         </div>
       )}
     </div>

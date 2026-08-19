@@ -653,6 +653,33 @@ a:hover {
   gap: 6px;
 }
 
+/* ---------- vault ---------- */
+
+.vault {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vaultrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 9px 12px;
+}
+
+.vaultsym {
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 /* ---------- footer ---------- */
 
 .footer {

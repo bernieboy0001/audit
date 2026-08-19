@@ -31,7 +31,11 @@ export function startServer(config: Config, store: Store, chain: Chain): void {
       });
     }
     if (req.method === "GET" && url.pathname === "/health") {
-      return send(res, 200, { ok: true, cycle: store.cycle });
+      return send(res, 200, {
+        ok: true,
+        cycle: store.cycle,
+        llm: config.llm.enabled ? { enabled: true, model: config.llm.model } : { enabled: false }
+      });
     }
     if (req.method === "GET" && url.pathname === "/state") {
       return send(res, 200, store.snapshot());
@@ -68,7 +72,14 @@ export function startServer(config: Config, store: Store, chain: Chain): void {
             if (!target || typeof target !== "string") {
               return send(res, 400, { error: "send a target address" });
             }
-            const result = await inspectAddress(chain, target);
+            const result = await inspectAddress(
+              chain,
+              target,
+              {
+                rpcUrl: config.inspectRpcUrl,
+                chainLabel: config.inspectChainLabel
+              }
+            );
             store.recordInspection(result);
             return send(res, 200, result);
           } catch (e) {

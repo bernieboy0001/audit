@@ -107,6 +107,10 @@ export class Store {
       recentEntries: this.ledger.tail(40),
       humanVetoes: this.humanVetoes,
       inspection: this.lastInspection,
+      llm: {
+        enabled: this.config.llm.enabled,
+        model: this.config.llm.model
+      },
       mode: this.mode
     };
   }

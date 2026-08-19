@@ -23,30 +23,33 @@ function fmtRawBalance(wei: string | undefined, decimals: number | null): string
 }
 
 /**
- * The "audit anything" primitive: give AUDIT any address on its chain and it
- * reads the truth straight off the ledger. No oracle, no guessing — if it
- * can't price something, it says so.
+ * The "audit anything" primitive: give AUDIT any address and it reads the
+ * truth straight off the chain — testnet demo market or live Base mainnet.
+ * No oracle, no guessing; if it can't price something it says so.
  */
 export async function inspectAddress(
   chain: Chain,
-  target: string
+  target: string,
+  opts: { rpcUrl: string; chainLabel: string }
 ): Promise<InspectionResult> {
+  const provider = new ethers.JsonRpcProvider(opts.rpcUrl);
   const addr = ethers.getAddress(target);
   const agentAddr = await chain.agent.getAddress();
-  const code = await chain.provider.getCode(addr);
+  const code = await provider.getCode(addr);
   const isContract = code !== "0x";
 
   const base: InspectionResult = {
     target: addr,
+    chain: opts.chainLabel,
     isContract,
     agent: agentAddr,
     note: ""
   };
 
   if (!isContract) {
-    const eth = await chain.provider.getBalance(addr);
+    const eth = await provider.getBalance(addr);
     base.eth = fmtRawBalance(eth.toString(), 18);
-    base.note = `${addr} is a plain wallet holding ${base.eth} ETH on this chain. AUDIT read that directly — no guesses.`;
+    base.note = `${addr} is a plain wallet holding ${base.eth} ETH on ${opts.chainLabel}. AUDIT read that directly — no guesses.`;
     return base;
   }
 
@@ -66,11 +69,13 @@ export async function inspectAddress(
     base.agentBalance = (isAuth ? bal.auth : bal.auds).toString();
     base.note = `${
       base.name
-    } (${sym}) is AUDIT's own market token. Live AMM price ${price.toFixed(4)} — read from the swap contract, not a feed.`;
+    } (${sym}) is AUDIT's own market token on its testnet. Live AMM price ${price.toFixed(
+      4
+    )} — read from the swap contract, not a feed.`;
     return base;
   }
 
-  const erc = new ethers.Contract(addr, META_ABI, chain.provider);
+  const erc = new ethers.Contract(addr, META_ABI, provider);
   let symbol = "";
   let name = "";
   let decimals: number | null = null;
@@ -95,15 +100,12 @@ export async function inspectAddress(
   base.agentBalance = agentBalance;
 
   if (symbol) {
-    base.note = `Token ${
-      name ? name + " " : ""
-    }(${symbol}) is not in AUDIT's demo market, so AUDIT won't pretend to price it. Its treasury balance of it has been read on-chain: ${fmtRawBalance(
+    base.note = `Token ${name ? name + " " : ""}(${symbol}) is not in AUDIT's demo market, so AUDIT won't pretend to price it on ${opts.chainLabel}. The treasury balance shown above was read on-chain: ${fmtRawBalance(
       agentBalance,
       decimals
     )} ${symbol}.`;
   } else {
-    base.note =
-      "Deployed contract, but not an ERC-20 AUDIT knows how to price. AUDIT says so instead of guessing.";
+    base.note = `A deployed contract on ${opts.chainLabel}, but not an ERC-20 AUDIT knows how to price. AUDIT says so instead of guessing.`;
   }
 
   return base;

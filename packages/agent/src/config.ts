@@ -25,6 +25,8 @@ export interface Config {
   maxSizePct: number;
   minSignalAbs: number;
   explorerUrl: string;
+  inspectRpcUrl: string;
+  inspectChainLabel: string;
 }
 
 export function loadConfig(dataDir?: string): Config {
@@ -63,6 +65,13 @@ export function loadConfig(dataDir?: string): Config {
     maxSizePct: Number(process.env.MAX_SIZE_PCT || 20),
     minSignalAbs: Number(process.env.MIN_SIGNAL_ABS || 0.25),
     explorerUrl:
-      process.env.EXPLORER_URL || "https://sepolia.basescan.org"
+      process.env.EXPLORER_URL || "https://sepolia.basescan.org",
+    inspectRpcUrl:
+      process.env.MAINNET_RPC_URL ||
+      process.env.RPC_URL ||
+      "https://base-sepolia-rpc.publicnode.com",
+    inspectChainLabel: process.env.MAINNET_RPC_URL
+      ? "Base mainnet"
+      : "Base Sepolia (testnet)"
   };
 }
