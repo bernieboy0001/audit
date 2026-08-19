@@ -88,12 +88,19 @@ async function executeDecision(
       { ...exec, commitTx },
       { cycle: store.cycle, txHash, chainEntry }
     );
-    const narrator = await narrateExecution(config, exec);
-    store.ledger.append(
-      "narration",
-      { decisionId: p.decisionId, text: narrator },
-      { cycle: store.cycle }
-    );
+    // Narration is prose-overhead, not a decision input: fire it without ever
+    // stalling the loop cadence. It lands in the ledger a moment later.
+    void narrateExecution(config, exec)
+      .then((narrator) => {
+        if (narrator) {
+          store.ledger.append(
+            "narration",
+            { decisionId: p.decisionId, text: narrator },
+            { cycle: store.cycle }
+          );
+        }
+      })
+      .catch((e) => console.warn("[loop] exec narration failed:", (e as Error).message));
   } catch (e) {
     store.ledger.append(
       "risk_violation",
@@ -214,12 +221,20 @@ export async function cycle(
       { cycle: cycleNo }
     );
 
-    const narrator = await narrateDecision(config, decision, review.reason);
-    store.ledger.append(
-      "narration",
-      { decisionId: decision.id, text: narrator },
-      { cycle: cycleNo }
-    );
+    const narratorCall = narrateDecision(config, decision, review.reason)
+      .then((text) => {
+        if (text) {
+          store.ledger.append(
+            "narration",
+            { decisionId: decision.id, text },
+            { cycle: cycleNo }
+          );
+        }
+      })
+      .catch((e) =>
+        console.warn("[loop] decision narration failed:", (e as Error).message)
+      );
+    void narratorCall;
 
     store.lastDecision = decision;
 

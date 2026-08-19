@@ -55,12 +55,8 @@ export async function resolvePendingOutcomes(
         ? "stood aside while nothing moved"
         : "missed a directional move";
       const view: OutcomeView = { ...base, hit, note };
-      const narrator = await narrateOutcome(config, view);
-      ledger.append(
-        "outcome",
-        { ...view, narrator, side },
-        { cycle: decidedCycle }
-      );
+      ledger.append("outcome", { ...view, side }, { cycle: decidedCycle });
+      attachNarration(config, ledger, id, view, decidedCycle);
       produced.push(view);
       continue;
     }
@@ -76,12 +72,8 @@ export async function resolvePendingOutcomes(
         ? "price moved as the trader expected"
         : "price went against the position";
       const view: OutcomeView = { ...base, hit, note };
-      const narrator = await narrateOutcome(config, view);
-      ledger.append(
-        "outcome",
-        { ...view, narrator, side },
-        { cycle: decidedCycle }
-      );
+      ledger.append("outcome", { ...view, side }, { cycle: decidedCycle });
+      attachNarration(config, ledger, id, view, decidedCycle);
       produced.push(view);
     } else {
       // Auditor vetoed it. Correct if price moved against the proposal.
@@ -95,15 +87,33 @@ export async function resolvePendingOutcomes(
         vetoCorrect,
         note
       };
-      const narrator = await narrateOutcome(config, view);
-      ledger.append(
-        "outcome",
-        { ...view, narrator, side },
-        { cycle: decidedCycle }
-      );
+      ledger.append("outcome", { ...view, side }, { cycle: decidedCycle });
+      attachNarration(config, ledger, id, view, decidedCycle);
       produced.push(view);
     }
   }
 
   return produced;
+}
+
+function attachNarration(
+  config: Config,
+  ledger: Ledger,
+  decisionId: string,
+  view: OutcomeView,
+  cycle: number
+): void {
+  void narrateOutcome(config, view)
+    .then((text) => {
+      if (text) {
+        ledger.append(
+          "narration",
+          { decisionId, text },
+          { cycle }
+        );
+      }
+    })
+    .catch((e) =>
+      console.warn("[outcome] narration failed:", (e as Error).message)
+    );
 }

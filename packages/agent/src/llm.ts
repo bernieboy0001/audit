@@ -30,7 +30,7 @@ async function callLlm(
         ],
         temperature: 0.4
       }),
-      signal: AbortSignal.timeout(45000)
+      signal: AbortSignal.timeout(15000)
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as {
