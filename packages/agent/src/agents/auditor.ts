@@ -82,17 +82,31 @@ export async function reviewProposal(
 ): Promise<Review> {
   const hard: string[] = [];
   const { proposal, engine, treasury } = input;
+  const auditLines: string[] = [];
 
   if (proposal.sizePct > config.maxSizePct) {
     hard.push(`size ${proposal.sizePct}% exceeds ${config.maxSizePct}% cap`);
+    auditLines.push(`position size ${proposal.sizePct}% — OVER ${config.maxSizePct}% cap ✗`);
+  } else {
+    auditLines.push(`position size ${proposal.sizePct}% ≤ ${config.maxSizePct}% cap ✓`);
   }
   if (proposal.side !== "hold" && Math.abs(engine.score) < config.minSignalAbs) {
     hard.push(`signal strength ${engine.score.toFixed(3)} below ${config.minSignalAbs} floor`);
+    auditLines.push(`signal strength ${Math.abs(engine.score).toFixed(3)} — below ${config.minSignalAbs} floor ✗`);
+  } else if (proposal.side !== "hold") {
+    auditLines.push(`signal strength ${Math.abs(engine.score).toFixed(3)} ≥ ${config.minSignalAbs} floor ✓`);
   }
   const expo = exposureAfter(proposal, treasury, engine.price);
   // A sell always reduces exposure; only a buy can push it over the cap.
   if (proposal.side === "buy" && expo > 0.6) {
     hard.push(`post-trade AUTH exposure ${(expo * 100).toFixed(0)}% exceeds 60%`);
+    auditLines.push(`post-trade exposure would be ${(expo * 100).toFixed(0)}% — OVER 60% ✗`);
+  } else {
+    auditLines.push(
+      proposal.side === "buy"
+        ? `post-trade exposure ${(expo * 100).toFixed(0)}% ≤ 60% cap ✓`
+        : `position exposure after ${proposal.side} — reduces risk ✓`
+    );
   }
 
   const json = await llmJson(config.llm, AUDITOR_SYSTEM, JSON.stringify(input));
@@ -112,13 +126,16 @@ export async function reviewProposal(
     reason = triggers + (llmReason ? ` | auditor adds: ${llmReason}` : "");
   } else {
     verdict = "approved";
+    auditLines.push(gate.reasons.length ? gate.reasons.join("; ") : "no whipsaw / spike state ✓");
     reason =
-      "approved — no rule or checkable risk triggered" +
+      "approved — audited: " +
+      auditLines.join(" · ") +
       (llmReason ? ` | auditor notes: ${llmReason}` : "");
   }
 
   const checks = [
-    ...hard,
+    ...hard.map((h) => "violation: " + h),
+    ...auditLines,
     ...(Array.isArray(json?.checks) ? json.checks.map(String) : [])
   ];
 
