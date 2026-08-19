@@ -10,14 +10,10 @@ export function txLink(hash: string): string {
   return `${EXPLORER_URL}/tx/${hash}`;
 }
 
-export async function fetchState(): Promise<AppState | null> {
-  try {
-    const r = await fetch(`${AGENT_URL}/state`, { cache: "no-store" });
-    if (!r.ok) return null;
-    return (await r.json()) as AppState;
-  } catch {
-    return null;
-  }
+export async function fetchState(): Promise<AppState> {
+  const r = await fetch(`${AGENT_URL}/state`, { cache: "no-store" });
+  if (!r.ok) throw new Error(`HTTP ${r.status} from ${AGENT_URL}`);
+  return (await r.json()) as AppState;
 }
 
 export async function humanVeto(decisionId: string): Promise<boolean> {

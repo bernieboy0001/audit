@@ -206,6 +206,17 @@ button.veto:hover {
   letter-spacing: 0.08em;
 }
 
+.conn-error {
+  border: 1px solid #a33;
+  background: #1a0d0d;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #ff9b9b;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
 .quote {
   border-left: 2px solid var(--border);
   padding-left: 10px;

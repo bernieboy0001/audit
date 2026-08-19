@@ -15,14 +15,16 @@ export default function Page() {
   const [state, setState] = useState<AppState | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastSeen, setLastSeen] = useState<number | null>(null);
+  const [connError, setConnError] = useState<string | null>(null);
   const [points, setPoints] = useState<Pt[]>([]);
   const lastCycle = useRef<number>(-1);
 
   const poll = useCallback(async () => {
-    const s = await fetchState();
-    if (s) {
+    try {
+      const s = await fetchState();
       setState(s);
       setConnected(true);
+      setConnError(null);
       setLastSeen(s.ts);
       if (s.cycle !== lastCycle.current && s.price !== null) {
         lastCycle.current = s.cycle;
@@ -31,6 +33,9 @@ export default function Page() {
           return next.slice(-200);
         });
       }
+    } catch (e) {
+      setConnected(false);
+      setConnError(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
@@ -68,6 +73,14 @@ export default function Page() {
         BLAME THE MODEL FOR ITS NUMBERS — THE ENGINE WRITES THEM, THE MODEL EXPLAINS
         THEM, AND THE LEDGER WATCHES BOTH.
       </div>
+
+      {!online && (
+        <div className="conn-error mono small">
+          {connError
+            ? `connecting to agent… ${connError} — Render&apos;s free tier sleeps after ~15 min idle and takes ~60 s to wake; this banner clears by itself.`
+            : "connecting to agent…"}
+        </div>
+      )}
 
       <div className="grid">
         <div>

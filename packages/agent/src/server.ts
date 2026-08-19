@@ -21,6 +21,13 @@ export function startServer(config: Config, store: Store): void {
     if (req.method === "OPTIONS") return send(res, 204, {});
     const url = new URL(req.url ?? "/", `http://localhost:${config.port}`);
 
+    if (req.method === "GET" && url.pathname === "/") {
+      return send(res, 200, {
+        service: "AUDIT agent",
+        status: "running",
+        endpoints: ["/health", "/state", "/ledger", "/human-veto", "/run-cycle"]
+      });
+    }
     if (req.method === "GET" && url.pathname === "/health") {
       return send(res, 200, { ok: true, cycle: store.cycle });
     }
