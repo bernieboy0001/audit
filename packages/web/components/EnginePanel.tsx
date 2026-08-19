@@ -8,39 +8,36 @@ export default function EnginePanel({ state }: { state: AppState }) {
   if (!e) {
     return (
       <div className="panel">
-        <h3>Engine</h3>
-        <div className="small muted">waiting for first reading…</div>
+        <h3>Numbers</h3>
+        <div className="small muted">waiting for the first reading…</div>
       </div>
     );
   }
 
   return (
     <div className="panel">
-      <h3>Signal engine — deterministic, not the model</h3>
-      <div className="row">
+      <h3>Numbers — written by the engine, not the AI</h3>
+      <div className="row" style={{ marginBottom: 10 }}>
         <span className={`badge ${e.grade}`}>{e.grade}</span>
-        <span className="mono small">
-          score {e.score.toFixed(3)} · expected {e.expectedBps >= 0 ? "+" : ""}
-          {e.expectedBps} bps
+        <span className="small muted">
+          combined signal {e.score.toFixed(2)} · expected{" "}
+          {e.expectedBps >= 0 ? "+" : ""}
+          {e.expectedBps} bps move
         </span>
       </div>
-      <hr className="rule" />
       <div className="vstack">
         {e.signals.map((s) => {
           const pct = Math.max(0, Math.min(100, Math.abs(s.value) * 100));
           return (
             <div key={s.key} className="enginebar">
-              <span className="small muted mono" style={{ width: 130 }}>
-                {s.key.replace(/_/g, " ")}
-              </span>
+              <span className="name muted mono">{s.key}</span>
               <div className="track">
                 <div
                   className="fill"
                   style={{
                     width: `${pct}%`,
                     background: s.value >= 0 ? "#37d399" : "#ff5d6c",
-                    left: s.value >= 0 ? "50%" : `${50 - pct}%`,
-                    position: "absolute"
+                    left: s.value >= 0 ? "50%" : `${50 - pct}%`
                   }}
                 />
                 <div
@@ -54,7 +51,7 @@ export default function EnginePanel({ state }: { state: AppState }) {
                   }}
                 />
               </div>
-              <span className={`small mono ${s.value >= 0 ? "green" : "red"}`}>
+              <span className="small muted mono" style={{ width: 46, textAlign: "right" }}>
                 {s.value >= 0 ? "+" : ""}
                 {s.value.toFixed(2)}
               </span>
@@ -65,27 +62,20 @@ export default function EnginePanel({ state }: { state: AppState }) {
       <hr className="rule" />
       <div className="grid2">
         <div>
-          <div className="small muted">treasury</div>
-          <div className="small mono">
-            AUTH {fmtWei(state.treasury?.auth ?? "0")}
-          </div>
-          <div className="small mono">
-            AUDS {fmtWei(state.treasury?.auds ?? "0")}
-          </div>
+          <div className="small muted">AI&apos;s money</div>
+          <div className="small mono">AUTH {fmtWei(state.treasury?.auth ?? "0")}</div>
+          <div className="small mono">AUDS {fmtWei(state.treasury?.auds ?? "0")}</div>
         </div>
         <div>
-          <div className="small muted">pool reserves</div>
-          <div className="small mono">
-            AUTH {fmtWei(state.reserves?.auth ?? "0")}
-          </div>
-          <div className="small mono">
-            AUDS {fmtWei(state.reserves?.auds ?? "0")}
-          </div>
+          <div className="small muted">market pool</div>
+          <div className="small mono">AUTH {fmtWei(state.reserves?.auth ?? "0")}</div>
+          <div className="small mono">AUDS {fmtWei(state.reserves?.auds ?? "0")}</div>
         </div>
       </div>
       <div className="small muted" style={{ marginTop: 8 }}>
-        price {fmtPrice(e.price)} · {state.priceChangeBps !== null && state.priceChangeBps !== undefined
-          ? `${state.priceChangeBps >= 0 ? "+" : ""}${state.priceChangeBps.toFixed(1)} bps/cycle`
+        price {fmtPrice(e.price)}
+        {state.priceChangeBps !== null && state.priceChangeBps !== undefined
+          ? ` · ${state.priceChangeBps >= 0 ? "+" : ""}${state.priceChangeBps.toFixed(1)} bps this heartbeat`
           : ""}
       </div>
     </div>

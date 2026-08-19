@@ -2,10 +2,10 @@
 
 import { TrustState } from "@/lib/types";
 
-function color(score: number): string {
-  if (score >= 60) return "#37d399";
-  if (score >= 40) return "#ffb454";
-  return "#ff5d6c";
+function classify(score: number): { color: string; word: string } {
+  if (score >= 60) return { color: "#37d399", word: "trustworthy" };
+  if (score >= 40) return { color: "#ffb454", word: "still earning trust" };
+  return { color: "#ff5d6c", word: "unreliable right now" };
 }
 
 function GaugeArc({ value, color }: { value: number; color: string }) {
@@ -13,7 +13,7 @@ function GaugeArc({ value, color }: { value: number; color: string }) {
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, value)) / 100;
   return (
-    <svg width="120" height="120" viewBox="0 0 120 120">
+    <svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label={`Trust score ${value} out of 100`}>
       <circle
         cx="60"
         cy="60"
@@ -37,7 +37,7 @@ function GaugeArc({ value, color }: { value: number; color: string }) {
       />
       <text
         x="60"
-        y="60"
+        y="58"
         textAnchor="middle"
         dominantBaseline="central"
         fill={color}
@@ -47,7 +47,7 @@ function GaugeArc({ value, color }: { value: number; color: string }) {
       </text>
       <text
         x="60"
-        y="82"
+        y="80"
         textAnchor="middle"
         dominantBaseline="central"
         fill="#8b94a7"
@@ -61,53 +61,67 @@ function GaugeArc({ value, color }: { value: number; color: string }) {
 
 export default function TrustGauge({ trust }: { trust: TrustState }) {
   const score = trust.score;
+  const { color, word } = classify(score);
+  const goodBusters =
+    trust.vetoes > 0 && trust.vetoCorrect > trust.vetoes - trust.vetoCorrect;
+
   return (
     <div className="panel fade-in">
-      <h3>Trust Score · engine-computed, model never writes it</h3>
+      <h3>The AI&apos;s report card</h3>
+      <p className="sub">
+        It grades itself from what actually happened after each decision. The model
+        never writes this number — the engine does.
+      </p>
       <div className="gaugewrap">
-        <GaugeArc value={score} color={color(score)} />
-        <div>
-          <div className="small muted" style={{ marginBottom: 8 }}>
-            earned from outcomes
+        <GaugeArc value={score} color={color} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="statgrid">
+            <div className="stat">
+              <span className="k">right calls</span>
+              <span className="v green">{trust.hits}</span>
+            </div>
+            <div className="stat">
+              <span className="k">wrong calls</span>
+              <span className="v red">{trust.misses}</span>
+            </div>
+            <div className="stat">
+              <span className="k">risk-checker stops</span>
+              <span className="v">{trust.vetoes}</span>
+            </div>
+            <div className="stat">
+              <span className="k">stop was right</span>
+              <span className="v">{trust.vetoCorrect}</span>
+            </div>
           </div>
-          <div className="statgrid" style={{ marginTop: 0 }}>
-            <div className="stat">
-              <div className="k">decisions</div>
-              <div className="v">{trust.totalDecisions}</div>
-            </div>
-            <div className="stat">
-              <div className="k">resolved</div>
-              <div className="v">{trust.resolved}</div>
-            </div>
-            <div className="stat">
-              <div className="k">hits</div>
-              <div className="v green">{trust.hits}</div>
-            </div>
-            <div className="stat">
-              <div className="k">misses</div>
-              <div className="v red">{trust.misses}</div>
-            </div>
-            <div className="stat">
-              <div className="k">vetoes</div>
-              <div className="v">{trust.vetoes}</div>
-            </div>
-            <div className="stat">
-              <div className="k">veto right</div>
-              <div className="v">{trust.vetoCorrect}</div>
-            </div>
+          <div className="small muted" style={{ marginTop: 10 }}>
+            {trust.resolved} of {trust.totalDecisions} decisions judged so far
+            {trust.pending > 0 ? ` · ${trust.pending} still waiting` : ""}
           </div>
         </div>
       </div>
+      <div className="trust-readout">
+        {score > 50 ? "+" : ""}
+        {score - 50} vs. the starting point of 50 · {word}
+      </div>
+      {goodBusters && (
+        <div className="small muted" style={{ marginTop: 6 }}>
+          Most of the risk-checker&apos;s stops turned out to be the right call.
+        </div>
+      )}
+
       {trust.history.length > 0 && (
         <>
           <hr className="rule" />
           <div className="small muted" style={{ marginBottom: 6 }}>
-            last moves
+            what moved it, most recent first
           </div>
           <div className="vstack">
             {trust.history.slice(-5).reverse().map((h, i) => (
               <div key={i} className="row small">
-                <span className={`mono ${h.delta >= 0 ? "green" : "red"}`} style={{ width: 40 }}>
+                <span
+                  className={`mono ${h.delta >= 0 ? "green" : "red"}`}
+                  style={{ width: 44, flex: "0 0 auto" }}
+                >
                   {h.delta >= 0 ? "+" : ""}
                   {h.delta}
                 </span>

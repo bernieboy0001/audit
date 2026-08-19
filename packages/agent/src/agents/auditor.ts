@@ -4,11 +4,12 @@ import { EngineOutput } from "../types.js";
 import { Proposal } from "./trader.js";
 
 const AUDITOR_SYSTEM = `You are the RISK AUDITOR of AUDIT, an autonomous fund. The TRADER agent has proposed a trade.
-Hard rules — you MUST veto regardless of any other reasoning:
+Vetoes are decided ONLY by machine-checkable rules — you do not block, you only explain and warn.
 1. sizePct > 20 (position too large)
 2. engine |score| < 0.25 on a non-hold (trading noise)
 3. post-trade AUTH exposure would exceed 50% of treasury
-Beyond hard rules, weigh soft risks: momentum exhaustion, elevated volatility, thin liquidity, chasing a spike.
+4. deterministic risk gate has fired (high volatility + disagreeing momentum, or a spike with no confirmed trend)
+Beyond that, list soft concerns in "checks" so the decision record is honest, but they must NOT flip your verdict.
 Respond ONLY with strict JSON:
 {"verdict":"approved"|"vetoed","reason":"...","checks":["..."]}`;
 
@@ -23,6 +24,35 @@ export interface Review {
   reason: string;
   checks: string[];
   hardViolations: string[];
+}
+
+/**
+ * The auditor may only block a trade when it can point at something
+ * machine-checkable. Soft "vibes" are converted to commentary, never to a
+ * veto — otherwise the risk agent quietly makes the fund miss every trade.
+ */
+function deterministicRiskGate(
+  engine: EngineOutput,
+  proposal: Proposal
+): { veto: boolean; reasons: string[] } {
+  if (proposal.side === "hold") return { veto: false, reasons: [] };
+  const sig = (k: string) =>
+    engine.signals.find((s) => s.key === k)?.value ?? 0;
+  const shortMom = sig("short_momentum");
+  const mediumMom = sig("medium_momentum");
+  const vol = sig("volatility");
+  const reasons: string[] = [];
+
+  if (vol <= -0.4 && Math.abs(shortMom - mediumMom) >= 0.5) {
+    reasons.push(
+      "volatility is high and short vs medium momentum disagree (whipsaw zone)"
+    );
+  }
+  if (Math.abs(shortMom) >= 0.7 && Math.abs(mediumMom) < 0.2) {
+    reasons.push("the move is a short spike with no confirmed trend");
+  }
+
+  return { veto: reasons.length > 0, reasons };
 }
 
 function exposureAfter(proposal: Proposal, treasury: { auth: number; auds: number }, price: number): number {
@@ -59,23 +89,25 @@ export async function reviewProposal(
   }
 
   const json = await llmJson(config.llm, AUDITOR_SYSTEM, JSON.stringify(input));
+  const llmReason = json?.reason ? String(json.reason) : "";
+  const gate = deterministicRiskGate(engine, proposal);
+  const veto = hard.length > 0 || gate.veto;
 
   let verdict: "approved" | "vetoed";
   let reason: string;
-  let llmReason = json?.reason ? String(json.reason) : "";
 
-  if (hard.length > 0) {
+  if (veto) {
     verdict = "vetoed";
-    reason =
-      "HARD RULE VIOLATION: " +
-      hard.join("; ") +
-      (llmReason ? ` | auditor adds: ${llmReason}` : "");
-  } else if (json && (json.verdict === "vetoed" || json.verdict === "approved")) {
-    verdict = json.verdict;
-    reason = llmReason || (verdict === "approved" ? "approved" : "vetoed");
+    const triggers =
+      hard.length > 0
+        ? "HARD RULE: " + hard.join("; ")
+        : "RISK GATE: " + gate.reasons.join("; ");
+    reason = triggers + (llmReason ? ` | auditor adds: ${llmReason}` : "");
   } else {
     verdict = "approved";
-    reason = "approved (deterministic gate: no hard rule violated)";
+    reason =
+      "approved — no rule or checkable risk triggered" +
+      (llmReason ? ` | auditor notes: ${llmReason}` : "");
   }
 
   const checks = [
