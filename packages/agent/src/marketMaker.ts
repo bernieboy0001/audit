@@ -25,19 +25,19 @@ export async function marketMakerTick(
 
     if (trendRemaining > 0) {
       dir = trendDir;
-      frac = 0.005 + Math.random() * 0.015;
+      frac = 0.01 + Math.random() * 0.025;
       trendRemaining--;
-    } else {
+} else {
       dir = Math.random() > 0.5 ? 1 : -1;
       const roll = Math.random();
-      if (roll < 0.18) {
+      if (roll < 0.3) {
         trendDir = dir;
-        trendRemaining = 3 + Math.floor(Math.random() * 4);
-        frac = 0.01 + Math.random() * 0.02;
-      } else if (roll < 0.55) {
-        frac = 0.004 + Math.random() * 0.01;
+        trendRemaining = 4 + Math.floor(Math.random() * 5);
+        frac = 0.012 + Math.random() * 0.02;
+      } else if (roll < 0.62) {
+        frac = 0.006 + Math.random() * 0.012;
       } else {
-        frac = 0.001 + Math.random() * 0.003;
+        frac = 0.002 + Math.random() * 0.005;
       }
     }
 

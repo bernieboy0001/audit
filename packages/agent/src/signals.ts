@@ -73,18 +73,18 @@ export function computeSignals(prices: number[]): EngineOutput {
 
   let score = signals.reduce((a, s) => a + s.value * s.weight, 0);
 
-  // Anti-whipsaw: when short and medium momentum pull in opposite directions
-  // the market is chopping, and chasing it is how funds lose money. Dampen the
-  // score hard until the two timeframes agree again.
+  // Anti-whipsaw, tuned to damp but not silence: only penalize when the two
+  // timeframes actively pull apart (chopping), and never below half strength —
+  // otherwise the engine holds forever and the demo looks dead.
   const diff = Math.abs(shortRet - mediumRet);
-  if (Math.sign(shortRet) !== Math.sign(mediumRet) || diff > 0.02) {
-    score *= Math.max(0.3, 1 - Math.min(1, diff * 12));
+  if (Math.sign(shortRet) !== Math.sign(mediumRet) && diff > 0.012) {
+    score *= Math.max(0.5, 1 - Math.min(1, diff * 6));
   }
 
   const direction = clamp(score);
   const expectedBps = Math.round(direction * 150);
   const grade =
-    score > 0.3 ? "bullish" : score < -0.3 ? "bearish" : "neutral";
+    score > 0.2 ? "bullish" : score < -0.2 ? "bearish" : "neutral";
 
   // Confidence is an engine estimate (not a model opinion): base 0.5, raised
   // by signal strength and by short/medium momentum agreeing. It's published
