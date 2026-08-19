@@ -78,7 +78,7 @@ export function computeSignals(prices: number[]): EngineOutput {
   // otherwise the engine holds forever and the demo looks dead.
   const diff = Math.abs(shortRet - mediumRet);
   if (Math.sign(shortRet) !== Math.sign(mediumRet) && diff > 0.012) {
-    score *= Math.max(0.5, 1 - Math.min(1, diff * 6));
+    score *= Math.max(0.65, 1 - Math.min(1, diff * 6));
   }
 
   // Don't chase tops. When price is stretched far above its EMA30, buying
@@ -86,9 +86,9 @@ export function computeSignals(prices: number[]): EngineOutput {
   // soft discount, so real trends still trade, but local tops stop being buys.
   const reversionV = signals.find((s) => s.key === "mean_reversion")?.value ?? 0;
   if (score > 0 && reversionV < -0.6) {
-    score *= 1 - 0.35 * Math.min(1, (-reversionV - 0.6) * 1.25);
+    score *= 1 - 0.25 * Math.min(1, (-reversionV - 0.6) * 1.25);
   } else if (score < 0 && reversionV > 0.6) {
-    score *= 1 - 0.35 * Math.min(1, (reversionV - 0.6) * 1.25);
+    score *= 1 - 0.25 * Math.min(1, (reversionV - 0.6) * 1.25);
   }
 
   const direction = clamp(score);
