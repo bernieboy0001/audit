@@ -1,6 +1,5 @@
 import { Config } from "../config.js";
 import { llmJson } from "../llm.js";
-import { marginOfSafety } from "../learn.js";
 import { EngineOutput, TrackingState } from "../types.js";
 import { Proposal } from "./trader.js";
 
@@ -36,8 +35,7 @@ export interface Review {
  */
 function deterministicRiskGate(
   engine: EngineOutput,
-  proposal: Proposal,
-  tracking: TrackingState
+  proposal: Proposal
 ): { veto: boolean; reasons: string[] } {
   if (proposal.side === "hold") return { veto: false, reasons: [] };
   const sig = (k: string) =>
@@ -46,19 +44,18 @@ function deterministicRiskGate(
   const mediumMom = sig("medium_momentum");
   const vol = sig("volatility");
   const reasons: string[] = [];
-  // On a cold streak the safety margin widens: the gate catches more,
-  // protecting capital while the model re-proves itself.
-  const wide = marginOfSafety(tracking);
-  const volThresh = -0.4 / wide;
-  const spikeThresh = 0.7 / wide;
 
-  if (vol <= volThresh && Math.abs(shortMom - mediumMom) >= 0.5) {
+  // Only extremely violent, directionless regimes stop a trade. Real trends —
+  // where short and medium momentum agree — must never be choked off, or the
+  // fund misses an actual rally. The gate is static: a cold streak cannot
+  // loosen or tighten it, so it can't feed a miss→veto death spiral.
+  if (vol <= -0.45 && Math.abs(shortMom - mediumMom) >= 0.6) {
     reasons.push(
-      "volatility is high and short vs medium momentum disagree (whipsaw zone)"
+      "volatility is extreme and short vs medium momentum disagree (whipsaw zone)"
     );
   }
-  if (Math.abs(shortMom) >= spikeThresh && Math.abs(mediumMom) < 0.2) {
-    reasons.push("the move is a short spike with no confirmed trend");
+  if (Math.abs(shortMom) >= 0.9 && Math.abs(mediumMom) < 0.15) {
+    reasons.push("the move is a violent outlier spike with no confirmed trend");
   }
 
   return { veto: reasons.length > 0, reasons };
@@ -99,7 +96,7 @@ export async function reviewProposal(
 
   const json = await llmJson(config.llm, AUDITOR_SYSTEM, JSON.stringify(input));
   const llmReason = json?.reason ? String(json.reason) : "";
-  const gate = deterministicRiskGate(engine, proposal, input.tracking);
+  const gate = deterministicRiskGate(engine, proposal);
   const veto = hard.length > 0 || gate.veto;
 
   let verdict: "approved" | "vetoed";
