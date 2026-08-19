@@ -10,6 +10,8 @@ const META_ABI = [
   "function balanceOf(address) view returns (uint256)"
 ];
 
+const CALL_TIMEOUT_MS = 10000;
+
 function fmtRawBalance(wei: string | undefined, decimals: number | null): string {
   if (!wei) return "0";
   const b = BigInt(wei);
@@ -22,34 +24,40 @@ function fmtRawBalance(wei: string | undefined, decimals: number | null): string
   return `${whole}.${fr}`;
 }
 
-/**
- * The "audit anything" primitive: give AUDIT any address and it reads the
- * truth straight off the chain — testnet demo market or live Base mainnet.
- * No oracle, no guessing; if it can't price something it says so.
- */
-export async function inspectAddress(
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, rej) =>
+      setTimeout(() => rej(new Error(`RPC timed out after ${ms}ms`)), ms)
+    )
+  ]);
+}
+
+async function inspectOn(
   chain: Chain,
-  target: string,
-  opts: { rpcUrl: string; chainLabel: string }
+  addr: string,
+  agentAddr: string,
+  rpcUrl: string,
+  chainLabel: string
 ): Promise<InspectionResult> {
-  const provider = new ethers.JsonRpcProvider(opts.rpcUrl);
-  const addr = ethers.getAddress(target);
-  const agentAddr = await chain.agent.getAddress();
-  const code = await provider.getCode(addr);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const get = <T>(pr: Promise<T>) => withTimeout(pr, CALL_TIMEOUT_MS);
+
+  const code = await get(provider.getCode(addr));
   const isContract = code !== "0x";
 
   const base: InspectionResult = {
     target: addr,
-    chain: opts.chainLabel,
+    chain: chainLabel,
     isContract,
     agent: agentAddr,
     note: ""
   };
 
   if (!isContract) {
-    const eth = await provider.getBalance(addr);
+    const eth = await get(provider.getBalance(addr));
     base.eth = fmtRawBalance(eth.toString(), 18);
-    base.note = `${addr} is a plain wallet holding ${base.eth} ETH on ${opts.chainLabel}. AUDIT read that directly — no guesses.`;
+    base.note = `${addr} is a plain wallet holding ${base.eth} ETH on ${chainLabel}. AUDIT read that directly — no guesses.`;
     return base;
   }
 
@@ -80,16 +88,16 @@ export async function inspectAddress(
   let name = "";
   let decimals: number | null = null;
   try {
-    symbol = String((await erc.symbol()) ?? "");
-    name = String((await erc.name()) ?? "");
-    decimals = Number(await erc.decimals());
+    symbol = String((await get(erc.symbol())) ?? "");
+    name = String((await get(erc.name())) ?? "");
+    decimals = Number(await get(erc.decimals()));
   } catch {
     // not an ERC-20 — leave fields empty
   }
 
   let agentBalance = "";
   try {
-    agentBalance = (await erc.balanceOf(agentAddr)) as string;
+    agentBalance = (await get(erc.balanceOf(agentAddr))) as string;
   } catch {
     agentBalance = "0";
   }
@@ -100,13 +108,36 @@ export async function inspectAddress(
   base.agentBalance = agentBalance;
 
   if (symbol) {
-    base.note = `Token ${name ? name + " " : ""}(${symbol}) is not in AUDIT's demo market, so AUDIT won't pretend to price it on ${opts.chainLabel}. The treasury balance shown above was read on-chain: ${fmtRawBalance(
+    base.note = `Token ${name ? name + " " : ""}(${symbol}) is not in AUDIT's demo market, so AUDIT won't pretend to price it on ${chainLabel}. The balance shown above was read on-chain: ${fmtRawBalance(
       agentBalance,
       decimals
     )} ${symbol}.`;
   } else {
-    base.note = `A deployed contract on ${opts.chainLabel}, but not an ERC-20 AUDIT knows how to price. AUDIT says so instead of guessing.`;
+    base.note = `A deployed contract on ${chainLabel}, but not an ERC-20 AUDIT knows how to price. AUDIT says so instead of guessing.`;
   }
 
   return base;
+}
+
+/**
+ * The "audit anything" primitive: give AUDIT any address and it reads the
+ * truth straight off the chain. Tries each public RPC in order so a slow node
+ * never stalls the request, and always returns an answer — never a hang.
+ */
+export async function inspectAddress(
+  chain: Chain,
+  target: string,
+  opts: { rpcUrls: string[]; chainLabel: string }
+): Promise<InspectionResult> {
+  const addr = ethers.getAddress(target);
+  const agentAddr = await chain.agent.getAddress();
+  let lastErr: unknown = null;
+  for (const url of opts.rpcUrls) {
+    try {
+      return await inspectOn(chain, addr, agentAddr, url, opts.chainLabel);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`network unreachable: ${(lastErr as Error)?.message ?? lastErr}`);
 }

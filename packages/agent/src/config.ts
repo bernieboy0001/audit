@@ -25,7 +25,7 @@ export interface Config {
   maxSizePct: number;
   minSignalAbs: number;
   explorerUrl: string;
-  inspectRpcUrl: string;
+  inspectRpcUrls: string[];
   inspectChainLabel: string;
 }
 
@@ -66,12 +66,22 @@ export function loadConfig(dataDir?: string): Config {
     minSignalAbs: Number(process.env.MIN_SIGNAL_ABS || 0.25),
     explorerUrl:
       process.env.EXPLORER_URL || "https://sepolia.basescan.org",
-    inspectRpcUrl:
-      process.env.MAINNET_RPC_URL ||
-      process.env.RPC_URL ||
-      "https://base-sepolia-rpc.publicnode.com",
-    inspectChainLabel: process.env.MAINNET_RPC_URL
-      ? "Base mainnet"
-      : "Base Sepolia (testnet)"
+    inspectRpcUrls: splitRpcUrls(process.env.MAINNET_RPC_URL),
+    inspectChainLabel: "Base mainnet"
   };
+}
+
+/** One or more comma-separated RPCs; defaults to fast public Base mainnet RPCs. */
+function splitRpcUrls(raw: string | undefined): string[] {
+  const urls = (raw ?? "")
+    .split(",")
+    .map((u) => u.trim())
+    .filter(Boolean);
+  return urls.length
+    ? urls
+    : [
+        "https://base-rpc.publicnode.com",
+        "https://mainnet.base.org",
+        "https://base.drpc.org"
+      ];
 }

@@ -76,7 +76,7 @@ export function startServer(config: Config, store: Store, chain: Chain): void {
               chain,
               target,
               {
-                rpcUrl: config.inspectRpcUrl,
+                rpcUrls: config.inspectRpcUrls,
                 chainLabel: config.inspectChainLabel
               }
             );
