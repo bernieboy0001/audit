@@ -50,13 +50,23 @@ async function executeDecision(
   try {
     const { txHash } = await doSwap(chain, tokenIn, amountIn, minOut);
 
-    // Commit the decision hash on-chain: public, timestamped, unforgeable.
+    // Commit the execution on-chain. The registry rejects exact duplicate
+    // hashes, so the exec hash is derived from the decision hash plus a phase
+    // marker: unique, yet provably linked to the already-public intent.
     const decisionEntry = store.ledger.decision(p.decisionId);
     let chainEntry: number | undefined;
     let commitTx = "";
     if (decisionEntry) {
-      const h = ethers.keccak256(ethers.toUtf8Bytes(canonical(decisionEntry.data)));
-      const res = await commitDecision(chain, h, `exec:${p.decisionId}`);
+      const decisionHash = ethers.keccak256(
+        ethers.toUtf8Bytes(canonical(decisionEntry.data))
+      );
+      const execHash = ethers.keccak256(
+        ethers.concat([
+          ethers.getBytes(decisionHash),
+          ethers.toUtf8Bytes(`|exec:${p.decisionId}`)
+        ])
+      );
+      const res = await commitDecision(chain, execHash, `exec:${p.decisionId}`);
       chainEntry = res.entryIndex;
       commitTx = res.txHash;
     }
