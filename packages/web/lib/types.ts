@@ -55,6 +55,8 @@ export interface OutcomeView {
   expectedBps: number;
   hit: boolean;
   vetoCorrect?: boolean;
+  hold?: boolean;
+  side?: Side;
   note: string;
 }
 

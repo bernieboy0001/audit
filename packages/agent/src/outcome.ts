@@ -1,7 +1,7 @@
 import { Config } from "./config.js";
 import { Ledger } from "./ledger.js";
 import { narrateOutcome } from "./agents/narrator.js";
-import { OutcomeView, PricePoint } from "./types.js";
+import { OutcomeView, PricePoint, Side } from "./types.js";
 
 function priceAtOrAfter(history: PricePoint[], cycle: number): PricePoint | null {
   const pts = history.filter((p) => p.cycle >= cycle);
@@ -30,7 +30,7 @@ export async function resolvePendingOutcomes(
       entries.some((e) => e.kind === "human_veto" && e.data.decisionId === id);
     if (already) continue;
 
-    const side = String(p.data.side);
+    const side = String(p.data.side) as Side;
     const entryPrice = Number(p.data.entryPrice);
     const expectedBps = Number(p.data.expectedBps);
     const decidedCycle = Number(p.data.cycle);
@@ -45,7 +45,8 @@ export async function resolvePendingOutcomes(
       entryPrice,
       exitPrice,
       realizedBps,
-      expectedBps
+      expectedBps,
+      side
     };
 
     if (side === "hold") {
@@ -53,9 +54,9 @@ export async function resolvePendingOutcomes(
       const hit = absMove < 100;
       const note = hit
         ? "stood aside while nothing moved"
-        : "missed a directional move";
-      const view: OutcomeView = { ...base, hit, note };
-      ledger.append("outcome", { ...view, side }, { cycle: decidedCycle });
+        : "stood aside while price moved — no position taken, no capital at risk";
+      const view: OutcomeView = { ...base, hit, hold: true, note };
+      ledger.append("outcome", view as unknown as Record<string, unknown>, { cycle: decidedCycle });
       attachNarration(config, ledger, id, view, decidedCycle);
       produced.push(view);
       continue;
@@ -72,7 +73,7 @@ export async function resolvePendingOutcomes(
         ? "price moved as the trader expected"
         : "price went against the position";
       const view: OutcomeView = { ...base, hit, note };
-      ledger.append("outcome", { ...view, side }, { cycle: decidedCycle });
+      ledger.append("outcome", view as unknown as Record<string, unknown>, { cycle: decidedCycle });
       attachNarration(config, ledger, id, view, decidedCycle);
       produced.push(view);
     } else {
@@ -87,7 +88,7 @@ export async function resolvePendingOutcomes(
         vetoCorrect,
         note
       };
-      ledger.append("outcome", { ...view, side }, { cycle: decidedCycle });
+      ledger.append("outcome", view as unknown as Record<string, unknown>, { cycle: decidedCycle });
       attachNarration(config, ledger, id, view, decidedCycle);
       produced.push(view);
     }

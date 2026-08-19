@@ -17,6 +17,25 @@ export default function OutcomeList({ outcomes }: { outcomes: OutcomeView[] }) {
       <div className="scroll">
         {outcomes.slice().reverse().map((o, i) => {
           const isVeto = o.vetoCorrect !== undefined;
+          const isHold = o.hold === true || o.side === "hold";
+          if (isHold) {
+            return (
+              <div key={`${o.decisionId}-${i}`} className="entry">
+                <div className="row">
+                  <span className="badge hold">stood aside</span>
+                  <span className="small muted">deliberate non-trade</span>
+                  <span className="small muted mono" style={{ marginLeft: "auto" }}>
+                    {o.realizedBps >= 0 ? "+" : ""}
+                    {o.realizedBps.toFixed(0)} bps move
+                  </span>
+                </div>
+                <div className="small" style={{ marginTop: 4 }}>
+                  <b>{isHold && o.hit ? "nothing moved — a quiet hold" : "no position taken, no capital at risk"}</b>
+                  <span className="muted"> — {o.note}</span>
+                </div>
+              </div>
+            );
+          }
           const ok = isVeto ? o.vetoCorrect : o.hit;
           const cls = isVeto ? (ok ? "outcome-save" : "outcome-miss") : ok ? "outcome-hit" : "outcome-miss";
           const verdictLabel = isVeto

@@ -83,6 +83,9 @@ export interface OutcomeView {
   expectedBps: number;
   hit: boolean;
   vetoCorrect?: boolean;
+  /** present only for decisions where the fund intentionally stood aside */
+  hold?: boolean;
+  side?: Side;
   note: string;
 }
 
