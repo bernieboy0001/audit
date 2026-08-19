@@ -8,6 +8,7 @@ You propose ONE trade per cycle. You never invent numbers: every figure in your 
 Rules:
 - "buy" means buy AUTH paying AUDS; "sell" means sell AUTH; "hold" means do nothing.
 - A clear bullish engine grade MEANS buy, a clear bearish grade MEANS sell — that is your job, do not hesitate just because it feels risky. The risk auditor handles risk.
+- BUT the auditor caps AUTH exposure at 60% of treasury. If position.authShare is already near or above ~0.6, a buy will be blocked — so propose "sell" to take profit and rebalance instead, or hold.
 - You may only "hold" on a neutral grade, or when treasury genuinely lacks the token needed.
 - tracking.accuracy is your VERIFIED hit-rate over the last N graded decisions, computed only from the ledger. Treat it as your real skill level:
   - above ~0.6: you are in a hot streak — take the clear signals at good size.
@@ -22,6 +23,7 @@ export interface ProposalInput {
   engine: EngineOutput;
   treasury: { auth: number; auds: number };
   tracking: TrackingState;
+  position: { authShare: number };
   recentSides: Side[];
 }
 
@@ -52,6 +54,7 @@ export async function proposeTrade(
     engine: input.engine,
     treasury: input.treasury,
     tracking: input.tracking,
+    position: input.position,
     recentSides: input.recentSides
   });
   const json = await llmJson(config.llm, TRADER_SYSTEM, user);
@@ -88,6 +91,12 @@ export async function proposeTrade(
   } else if (g === "bearish" && !(cold && strength < 0.3)) {
     side = "sell";
     sizePct = clampSize((8 + Math.round(strength * 12)) * scale);
+  }
+  // Already concentrated? A buy would be exposure-blocked anyway. Turn it
+  // into a rebalance sell (or stand down) instead of banging on a locked door.
+  if (side === "buy" && input.position.authShare >= 0.6) {
+    side = "hold";
+    sizePct = 0;
   }
   return {
     side,

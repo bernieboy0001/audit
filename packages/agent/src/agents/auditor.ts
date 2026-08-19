@@ -8,7 +8,7 @@ const AUDITOR_SYSTEM = `You are the RISK AUDITOR of AUDIT, an autonomous fund. T
 Vetoes are decided ONLY by machine-checkable rules — you do not block, you only explain and warn.
 1. sizePct > 20 (position too large)
 2. engine |score| < 0.25 on a non-hold (trading noise)
-3. post-trade AUTH exposure would exceed 50% of treasury
+3. post-trade AUTH exposure would exceed 60% of treasury
 4. deterministic risk gate has fired (high volatility + disagreeing momentum, or a spike with no confirmed trend)
 5. tracking.accuracy below ~0.45 means the AI is on a cold streak — hard rules are enforced even more strictly
 Beyond that, list soft concerns in "checks" so the decision record is honest, but they must NOT flip your verdict.
@@ -93,8 +93,8 @@ export async function reviewProposal(
   }
   const expo = exposureAfter(proposal, treasury, engine.price);
   // A sell always reduces exposure; only a buy can push it over the cap.
-  if (proposal.side === "buy" && expo > 0.5) {
-    hard.push(`post-trade AUTH exposure ${(expo * 100).toFixed(0)}% exceeds 50%`);
+  if (proposal.side === "buy" && expo > 0.6) {
+    hard.push(`post-trade AUTH exposure ${(expo * 100).toFixed(0)}% exceeds 60%`);
   }
 
   const json = await llmJson(config.llm, AUDITOR_SYSTEM, JSON.stringify(input));

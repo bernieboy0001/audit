@@ -133,6 +133,9 @@ export async function cycle(
     auth: Number(bal.auth) / ETHER,
     auds: Number(bal.auds) / ETHER
   };
+  const authValue = treasury.auth * price;
+  const authShare =
+    authValue + treasury.auds > 0 ? authValue / (authValue + treasury.auds) : 0;
 
   // 1. Re-score decisions that are old enough.
   const outcomes = await resolvePendingOutcomes(
@@ -160,6 +163,7 @@ export async function cycle(
       engine,
       treasury,
       tracking: store.tracking,
+      position: { authShare },
       recentSides: store.ledger
         .readAll()
         .filter((e) => e.kind === "proposal")
