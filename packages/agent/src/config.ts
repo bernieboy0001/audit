@@ -71,7 +71,8 @@ export function loadConfig(dataDir?: string): Config {
   };
 }
 
-/** One or more comma-separated RPCs; defaults to fast public Base mainnet RPCs. */
+/** One or more comma-separated RPCs; defaults to public Base mainnet RPCs that
+ * tolerate datacenter (Render) egress — many nodes block cloud IPs. */
 function splitRpcUrls(raw: string | undefined): string[] {
   const urls = (raw ?? "")
     .split(",")
@@ -80,8 +81,10 @@ function splitRpcUrls(raw: string | undefined): string[] {
   return urls.length
     ? urls
     : [
-        "https://base-rpc.publicnode.com",
-        "https://mainnet.base.org",
-        "https://base.drpc.org"
+        "https://base.llamarpc.com",
+        "https://1rpc.io/base",
+        "https://base.blockpi.network/v1/rpc/public",
+        "https://rpc.ankr.com/eth_base",
+        "https://base-rpc.publicnode.com"
       ];
 }

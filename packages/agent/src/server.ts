@@ -9,13 +9,18 @@ function send(
   code: number,
   body: unknown
 ): void {
-  res.writeHead(code, {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
-  });
-  res.end(JSON.stringify(body));
+  if (res.destroyed || res.writableEnded) return;
+  try {
+    res.writeHead(code, {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
+    });
+    res.end(JSON.stringify(body));
+  } catch {
+    /* client went away mid-response — nothing to do */
+  }
 }
 
 export function startServer(config: Config, store: Store, chain: Chain): void {

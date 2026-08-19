@@ -39,6 +39,11 @@ async function main(): Promise<void> {
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+  // A flaky RPC once threw after the socket closed and took the process down.
+  // The health of the demo matters more than one unhappy request: log it, move on.
+  process.on("unhandledRejection", (e) =>
+    console.warn("[AUDIT] unhandled rejection:", (e as Error)?.message ?? e)
+  );
 }
 
 main().catch((e) => {

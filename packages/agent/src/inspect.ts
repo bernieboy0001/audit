@@ -10,7 +10,7 @@ const META_ABI = [
   "function balanceOf(address) view returns (uint256)"
 ];
 
-const CALL_TIMEOUT_MS = 10000;
+const CALL_TIMEOUT_MS = 7000;
 
 function fmtRawBalance(wei: string | undefined, decimals: number | null): string {
   if (!wei) return "0";
