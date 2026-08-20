@@ -10,6 +10,7 @@ import { Chain, doSwap, getReserves } from "./chain.js";
 
 let trendDir = 0;
 let trendRemaining = 0;
+let coastRemaining = 0;
 let running = false;
 
 export async function marketMakerTick(
@@ -25,19 +26,26 @@ export async function marketMakerTick(
 
     if (trendRemaining > 0) {
       dir = trendDir;
-      frac = 0.01 + Math.random() * 0.025;
+      frac = 0.006 + Math.random() * 0.008;
       trendRemaining--;
-} else {
+      if (trendRemaining === 0) {
+        // Settle phase: keep drifting the same way, quietly, so a move is
+        // readable by the medium-timeframe signal instead of snapping back.
+        coastRemaining = 8 + Math.floor(Math.random() * 5);
+      }
+    } else if (coastRemaining > 0) {
+      dir = trendDir;
+      frac = 0.0015 + Math.random() * 0.0025;
+      coastRemaining--;
+    } else {
       dir = Math.random() > 0.5 ? 1 : -1;
       const roll = Math.random();
-      if (roll < 0.3) {
+      if (roll < 0.35) {
         trendDir = dir;
-        trendRemaining = 4 + Math.floor(Math.random() * 5);
-        frac = 0.012 + Math.random() * 0.02;
-      } else if (roll < 0.62) {
-        frac = 0.006 + Math.random() * 0.012;
+        trendRemaining = 8 + Math.floor(Math.random() * 7);
+        frac = 0.006 + Math.random() * 0.008;
       } else {
-        frac = 0.002 + Math.random() * 0.005;
+        frac = 0.004 + Math.random() * 0.006;
       }
     }
 

@@ -27,9 +27,10 @@ exist is a fund that is **accountable**:
   ledger — sizes every bet. Hot streak → press the edge. Cold streak → shrink
   and hold. You can watch the trade-off happen live.
 - optional **high-conviction discipline** (`CONVICTION=high`): the fund refuses
-  to trade unless momentum agrees across timeframes, the signal clears a stiff
-  floor, price isn't stretched, volatility is calm, and its own recent calls on
-  that side aren't a series of misses. The declines are recorded with a reason —
+  to trade when momentum doesn't agree in the trade's direction, the signal is
+  under a stiff floor, volatility is violent, or its own recent calls on that
+  side are a series of misses — and it *throttles* stretched-but-still-trending
+  moves instead of skipping them. The declines are recorded with a reason,
   evidence of restraint, not silence.
 
 That is the black-box recorder for AI agents — the trust layer every fund,

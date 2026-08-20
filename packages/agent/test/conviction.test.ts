@@ -61,7 +61,7 @@ describe("highConvictionGate", () => {
     expect(out).toBe(hold);
   });
 
-  it("downgrades to hold when momentum timeframes disagree", () => {
+  it("downgrades a buy when momentum does not agree in that direction", () => {
     const e = engine({
       ...overrides({ short_momentum: 0.7, medium_momentum: -0.5 })
     });
@@ -70,31 +70,63 @@ describe("highConvictionGate", () => {
     expect(out.reason).toContain("do not agree");
   });
 
-  it("downgrades when the signal is under the 0.40 floor", () => {
+  it("downgrades a sell when momentum does not agree in that direction", () => {
+    const e = engine({
+      ...overrides({ short_momentum: -0.7, medium_momentum: 0.5 })
+    });
+    const out = highConvictionGate(e, sell, clean);
+    expect(out.side).toBe("hold");
+    expect(out.reason).toContain("do not agree");
+  });
+
+  it("downgrades when the signal is under the 0.32 floor", () => {
     const e = engine({
       ...overrides({ short_momentum: 0.3, medium_momentum: 0.3 }),
       score: 0.19
     });
     const out = highConvictionGate(e, buy, clean);
     expect(out.side).toBe("hold");
-    expect(out.reason).toContain("0.40 high-conviction floor");
+    expect(out.reason).toContain("0.32 high-conviction floor");
   });
 
-  it("refuses to buy a stretched top", () => {
-    const e = engine({ ...overrides({ mean_reversion: -0.8 }) });
+  it("refuses to buy a stretched top when momentum is fading", () => {
+    const e = engine({
+      ...overrides({ short_momentum: 0.8, medium_momentum: 0.1, mean_reversion: -0.8 })
+    });
     const out = highConvictionGate(e, buy, clean);
     expect(out.side).toBe("hold");
     expect(out.reason).toContain("buying a top");
   });
 
-  it("refuses to sell a washed-out bottom", () => {
-    const e = engine({ ...overrides({ mean_reversion: 0.8 }) });
+  it("throttles instead of freezing on a stretched but still-trending buy", () => {
+    const e = engine({ ...overrides({ mean_reversion: -0.8 }) });
+    const out = highConvictionGate(e, buy, clean);
+    expect(out.side).toBe("buy");
+    expect(out.sizePct).toBe(5);
+    expect(out.riskFlags).toContain("throttled_for_stretch");
+  });
+
+  it("refuses to sell a washed-out bottom when momentum is fading", () => {
+    const e = engine({
+      ...overrides({ short_momentum: -0.8, medium_momentum: -0.1, mean_reversion: 0.8 })
+    });
     const out = highConvictionGate(e, sell, clean);
     expect(out.side).toBe("hold");
     expect(out.reason).toContain("selling a bottom");
   });
 
-  it("stands down during extreme volatility", () => {
+  it("throttles instead of freezing on a stretched but still-trending sell", () => {
+    const e = engine({
+      ...overrides({ short_momentum: -0.8, medium_momentum: -0.6, mean_reversion: 0.8 }),
+      score: 0.49
+    });
+    const out = highConvictionGate(e, sell, clean);
+    expect(out.side).toBe("sell");
+    expect(out.sizePct).toBe(5);
+    expect(out.riskFlags).toContain("throttled_for_stretch");
+  });
+
+  it("stands down during genuinely extreme volatility", () => {
     const e = engine({ ...overrides({ volatility: -0.5 }) });
     const out = highConvictionGate(e, buy, clean);
     expect(out.side).toBe("hold");

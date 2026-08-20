@@ -135,12 +135,15 @@ export async function proposeTrade(
 }
 
 /**
- * CONVICTION=high: trade only when the market is unambiguous. Any proposal is
- * downgraded to a hold — with a machine-checkable reason — until BOTH momentum
- * timeframes agree, the signal clears a stiffer floor, price is not stretched
- * against us, volatility is calm, and the fund's own recent calls on that side
- * are not a cascade of misses. The guard sits at the source so the LLM (or the
- * fallback) can never talk its way into a low-quality trade.
+ * CONVICTION=high: trade only in an unambiguous market, and throttle otherwise.
+ * The proposal is downgraded to a recorded hold — with a machine-checkable
+ * reason — while momentum does not agree in the proposal's direction, the
+ * signal is below a stiffer floor, volatility is genuinely violent, or the
+ * fund's own recent calls on that side are a cascade of misses. When the trend
+ * is stretched but still firmly moving with us, the gate does NOT freeze: it
+ * throttles size to a token amount so a clean trend is still played, just
+ * cautiously. The guard sits at the source so the LLM (or the fallback) can
+ * never talk its way into a low-quality trade.
  */
 export function highConvictionGate(
   engine: EngineOutput,
@@ -157,23 +160,28 @@ export function highConvictionGate(
   const strength = Math.abs(engine.score);
 
   const blockers: string[] = [];
-  if (
-    Math.sign(shortV) !== Math.sign(medV) ||
-    Math.abs(shortV) < 0.05 ||
-    Math.abs(medV) < 0.05
-  ) {
-    blockers.push("short and medium momentum do not agree");
+  const agreeing =
+    proposal.side === "buy"
+      ? shortV > 0.04 && medV > 0.04
+      : shortV < -0.04 && medV < -0.04;
+  if (!agreeing) {
+    blockers.push("short and medium momentum do not agree in that direction");
   }
-  if (strength < 0.4) {
-    blockers.push(`signal strength ${engine.score.toFixed(3)} is below the 0.40 high-conviction floor`);
+  if (strength < 0.32) {
+    blockers.push(`signal strength ${engine.score.toFixed(3)} is below the 0.32 high-conviction floor`);
   }
-  if (proposal.side === "buy" && reversionV < -0.6) {
-    blockers.push("price is stretched far above its trend — that is buying a top");
+  const stretchedBuy = proposal.side === "buy" && reversionV < -0.6;
+  const stretchedSell = proposal.side === "sell" && reversionV > 0.6;
+  const fading =
+    proposal.side === "buy" ? medV < 0.25 : medV > -0.25;
+  if ((stretchedBuy || stretchedSell) && fading) {
+    blockers.push(
+      proposal.side === "buy"
+        ? "price is stretched far above its trend and momentum is already fading — that is buying a top"
+        : "price is washed out far below its trend and momentum is already fading — that is selling a bottom"
+    );
   }
-  if (proposal.side === "sell" && reversionV > 0.6) {
-    blockers.push("price is washed out far below its trend — that is selling a bottom");
-  }
-  if (vol <= -0.4) {
+  if (vol <= -0.5) {
     blockers.push("volatility is extreme");
   }
   const sameSideMisses =
@@ -182,12 +190,27 @@ export function highConvictionGate(
     blockers.push(`the last ${sameSideMisses} graded calls on this side were misses`);
   }
 
-  if (!blockers.length) return proposal;
-  return {
-    ...proposal,
-    side: "hold",
-    sizePct: 0,
-    reason: `[high-conviction] stood down: ${blockers.join("; ")}. Engine grade was ${engine.grade}, score ${engine.score.toFixed(3)}.`,
-    riskFlags: [...proposal.riskFlags, "conviction_hold"]
-  };
+  if (blockers.length) {
+    return {
+      ...proposal,
+      side: "hold",
+      sizePct: 0,
+      reason: `[high-conviction] stood down: ${blockers.join("; ")}. Engine grade was ${engine.grade}, score ${engine.score.toFixed(3)}.`,
+      riskFlags: [...proposal.riskFlags, "conviction_hold"]
+    };
+  }
+
+  // Stretched but still firmly moving with us: play it small instead of
+  // skipping it — restraint without paralysis.
+  if (stretchedBuy || stretchedSell) {
+    return {
+      ...proposal,
+      sizePct: Math.min(proposal.sizePct, 5),
+      reason: proposal.reason.includes("[high-conviction]")
+        ? proposal.reason
+        : `[high-conviction] trend stretched — size throttled to ${Math.min(proposal.sizePct, 5)}%. ${proposal.reason}`,
+      riskFlags: [...proposal.riskFlags, "throttled_for_stretch"]
+    };
+  }
+  return proposal;
 }
