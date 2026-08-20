@@ -144,4 +144,23 @@ export class Store {
       JSON.stringify(this.priceHistory.slice(-2000))
     );
   }
+
+  /** Wipe the in-memory + local report card for a fresh demo run. The
+   *  on-chain registry is untouched: history already committed to mainnet
+   *  stays auditable, only the live dashboard restarts. */
+  reset(): void {
+    this.ledger.reset();
+    this.cycle = 0;
+    this.priceHistory = [];
+    this.valueHistory = [];
+    this.pending = null;
+    this.humanVetoes = [];
+    this.lastDecision = null;
+    this.lastExecution = null;
+    this.recentOutcomes = [];
+    this.engine = null;
+    this.tracking = { accuracy: 0.5, samples: 0 };
+    this.forceRun = false;
+    this.save();
+  }
 }

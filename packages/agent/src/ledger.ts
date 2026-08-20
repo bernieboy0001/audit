@@ -59,6 +59,10 @@ export class Ledger {
     return this.readAll().slice(-n);
   }
 
+  reset(): void {
+    fs.writeFileSync(this.file, "");
+  }
+
   decision(id: string): LedgerEntry | undefined {
     return this.readAll().find(
       (e) => e.kind === "proposal" && e.data.id === id

@@ -32,7 +32,7 @@ export function startServer(config: Config, store: Store, chain: Chain): void {
       return send(res, 200, {
         service: "AUDIT agent",
         status: "running",
-        endpoints: ["/health", "/state", "/ledger", "/human-veto", "/run-cycle", "/inspect"]
+        endpoints: ["/health", "/state", "/ledger", "/human-veto", "/run-cycle", "/inspect", "/reset"]
       });
     }
     if (req.method === "GET" && url.pathname === "/health") {
@@ -66,6 +66,10 @@ export function startServer(config: Config, store: Store, chain: Chain): void {
     if (req.method === "POST" && url.pathname === "/run-cycle") {
       store.forceRun = true;
       return send(res, 200, { ok: true });
+    }
+    if (req.method === "POST" && url.pathname === "/reset") {
+      store.reset();
+      return send(res, 200, { ok: true, note: "live report card re-zeroed" });
     }
     if (req.method === "POST" && url.pathname === "/inspect") {
       let body = "";
