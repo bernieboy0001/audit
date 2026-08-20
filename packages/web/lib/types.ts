@@ -143,6 +143,7 @@ export interface AppState {
   inspection: InspectionResult | null;
   llm: { enabled: boolean; model: string };
   mode: string;
+  conviction?: string;
   tracking: { accuracy: number; samples: number };
   valueHistory: { cycle: number; ts: number; value: number }[];
 }

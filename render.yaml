@@ -13,6 +13,8 @@ services:
         value: /app/.data
       - key: CYCLE_MS
         value: "15000"
+      - key: CONVICTION
+        value: "high"
       - key: RPC_URL
         sync: false
       - key: AGENT_PRIVATE_KEY

@@ -13,7 +13,7 @@ import { canonical } from "./ledger.js";
 import { computeSignals } from "./signals.js";
 import { Store } from "./store.js";
 import { resolvePendingOutcomes } from "./outcome.js";
-import { proposeTrade } from "./agents/trader.js";
+import { proposeTrade, MissStreak } from "./agents/trader.js";
 import { reviewProposal } from "./agents/auditor.js";
 import { narrateDecision, narrateExecution } from "./agents/narrator.js";
 import { calibrateConfidence, rollingAccuracy } from "./learn.js";
@@ -160,16 +160,18 @@ export async function cycle(
 
   // 3. Propose a fresh decision when nothing is pending.
   if (!store.pending) {
+    const all = store.ledger.readAll();
+    const missStreak = trailingMissStreak(all);
     const proposal = await proposeTrade(config, {
       engine,
       treasury,
       tracking: store.tracking,
       position: { authShare },
-      recentSides: store.ledger
-        .readAll()
+      recentSides: all
         .filter((e) => e.kind === "proposal")
         .slice(-5)
-        .map((e) => String(e.data.side) as Side)
+        .map((e) => String(e.data.side) as Side),
+      missStreak
     });
 
     let finalProposal = proposal;
@@ -312,4 +314,21 @@ export function startLoop(
 
   void run();
   return setInterval(() => void run(), config.cycleMs);
+}
+
+/** Per-side trailing miss count, walking the append-only ledger in order so a
+ *  direction's most recent graded calls are what matters. A hit resets the
+ *  count; only executed (not vetoed) calls count as graded. */
+function trailingMissStreak(
+  entries: { kind: string; data: Record<string, unknown> }[]
+): MissStreak {
+  const streak: MissStreak = { buy: 0, sell: 0 };
+  for (const e of entries) {
+    if (e.kind !== "outcome") continue;
+    const d = e.data as { side?: string; hit?: boolean; vetoCorrect?: boolean; hold?: boolean };
+    if (d.side !== "buy" && d.side !== "sell") continue;
+    if (d.vetoCorrect !== undefined) continue; // proposal never executed
+    streak[d.side] = d.hit === true ? 0 : streak[d.side] + 1;
+  }
+  return streak;
 }

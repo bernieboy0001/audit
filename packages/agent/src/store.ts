@@ -131,6 +131,7 @@ export class Store {
         model: this.config.llm.model
       },
       mode: this.mode,
+      conviction: this.config.conviction,
       tracking: this.tracking,
       valueHistory: this.valueHistory.slice(-400)
     };

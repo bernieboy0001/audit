@@ -117,6 +117,9 @@ export default function Page() {
           <span className="pill">
             heartbeat <b>#{state?.cycle ?? "…"}</b>
           </span>
+          {state?.conviction === "high" && (
+            <span className="pill ok">conviction <b>HIGH</b></span>
+          )}
           <span className="pill">
             AUTH price <b>{price !== null && price !== undefined ? fmtPrice(price) : "…"}</b>
           </span>

@@ -26,6 +26,11 @@ exist is a fund that is **accountable**:
 - the agent **learns**: its verified hit-rate — engine-computed from the
   ledger — sizes every bet. Hot streak → press the edge. Cold streak → shrink
   and hold. You can watch the trade-off happen live.
+- optional **high-conviction discipline** (`CONVICTION=high`): the fund refuses
+  to trade unless momentum agrees across timeframes, the signal clears a stiff
+  floor, price isn't stretched, volatility is calm, and its own recent calls on
+  that side aren't a series of misses. The declines are recorded with a reason —
+  evidence of restraint, not silence.
 
 That is the black-box recorder for AI agents — the trust layer every fund,
 DAO, and insurer needs before letting agents touch real money.
@@ -152,7 +157,8 @@ powershell -ExecutionPolicy Bypass -File scripts/e2e-test.ps1
 `RPC_URL`, `AGENT_PRIVATE_KEY`, `MARKET_MAKER_PRIVATE_KEY`, `MARKET_MAKER`,
 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` (OpenAI-compatible, optional),
 `CYCLE_MS`, `VETO_WINDOW_CYCLES`, `OUTCOME_HORIZON_CYCLES`, `PORT`,
-`MAX_SIZE_PCT`, `MIN_SIGNAL_ABS`, `EXPLORER_URL`, `DATA_DIR`.
+`MAX_SIZE_PCT`, `MIN_SIGNAL_ABS`, `EXPLORER_URL`, `DATA_DIR`, `CONVICTION`
+(`moderate` | `high`).
 
 `packages/web`:
 `NEXT_PUBLIC_AGENT_URL`, `NEXT_PUBLIC_EXPLORER_URL`.

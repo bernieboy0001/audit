@@ -26,6 +26,13 @@ export interface ProposalInput {
   tracking: TrackingState;
   position: { authShare: number };
   recentSides: Side[];
+  /** Consecutive most-recent graded misses per side (executed calls only). */
+  missStreak?: MissStreak;
+}
+
+export interface MissStreak {
+  buy: number;
+  sell: number;
 }
 
 export interface Proposal {
@@ -51,6 +58,7 @@ export async function proposeTrade(
   config: Config,
   input: ProposalInput
 ): Promise<Proposal> {
+  let proposal: Proposal | null = null;
   const user = JSON.stringify({
     engine: input.engine,
     treasury: input.treasury,
@@ -62,7 +70,7 @@ export async function proposeTrade(
   if (json) {
     const side = normalizeSide(json.side);
     if (side) {
-      return {
+      proposal = {
         side,
         sizePct: clampSize(Number(json.sizePct)),
         reason: String(json.reason ?? ""),
@@ -77,44 +85,109 @@ export async function proposeTrade(
     }
   }
 
-  // Deterministic fallback — the system works even with no LLM.
-  // It adapts: verified-hot → press the edge; cold → shrink and stand down
-  // unless the signal is unmistakable. This is engine-computed, never guessed.
-  const g = input.engine.grade;
-  const cold = input.tracking.samples >= 8 && input.tracking.accuracy <= 0.45;
-  const scale = sizeMultiplier(input.tracking);
-  let side: Side = "hold";
-  let sizePct = 0;
-  const strength = Math.abs(input.engine.score);
+  if (!proposal) {
+    // Deterministic fallback — the system works even with no LLM.
+    // It adapts: verified-hot → press the edge; cold → shrink and stand down
+    // unless the signal is unmistakable. This is engine-computed, never guessed.
+    const g = input.engine.grade;
+    const cold = input.tracking.samples >= 8 && input.tracking.accuracy <= 0.45;
+    const scale = sizeMultiplier(input.tracking);
+    let side: Side = "hold";
+    let sizePct = 0;
+    const strength = Math.abs(input.engine.score);
 
-  // Reversal exit: the medium trend itself has turned against a no-short-only
-  // dip. Real reversals, not pullbacks. A pullback with medium momentum still
-  // positive is a hold — cutting there turns winners into small misses.
-  const shortV = input.engine.signals.find((s) => s.key === "short_momentum")?.value ?? 0;
-  const medV = input.engine.signals.find((s) => s.key === "medium_momentum")?.value ?? 0;
+    // Reversal exit: the medium trend itself has turned against a no-short-only
+    // dip. Real reversals, not pullbacks. A pullback with medium momentum still
+    // positive is a hold — cutting there turns winners into small misses.
+    const shortV = input.engine.signals.find((s) => s.key === "short_momentum")?.value ?? 0;
+    const medV = input.engine.signals.find((s) => s.key === "medium_momentum")?.value ?? 0;
 
-  if (medV < 0.05 && shortV < -0.12 && input.position.authShare >= 0.35) {
-    side = "sell";
-    sizePct = clampSize((7 + Math.round(strength * 12)) * scale);
-  } else if (g === "bullish" && !(cold && strength < 0.3)) {
-    side = "buy";
-    sizePct = clampSize((8 + Math.round(strength * 12)) * scale);
-  } else if (g === "bearish" && !(cold && strength < 0.3)) {
-    side = "sell";
-    sizePct = clampSize((8 + Math.round(strength * 12)) * scale);
+    if (medV < 0.05 && shortV < -0.12 && input.position.authShare >= 0.35) {
+      side = "sell";
+      sizePct = clampSize((7 + Math.round(strength * 12)) * scale);
+    } else if (g === "bullish" && !(cold && strength < 0.3)) {
+      side = "buy";
+      sizePct = clampSize((8 + Math.round(strength * 12)) * scale);
+    } else if (g === "bearish" && !(cold && strength < 0.3)) {
+      side = "sell";
+      sizePct = clampSize((8 + Math.round(strength * 12)) * scale);
+    }
+    // Already concentrated? A buy would be exposure-blocked anyway. Turn it
+    // into a rebalance sell (or stand down) instead of banging on a locked door.
+    if (side === "buy" && input.position.authShare >= 0.6) {
+      side = "hold";
+      sizePct = 0;
+    }
+    proposal = {
+      side,
+      sizePct,
+      reason: `Deterministic fallback (no LLM): engine grade ${g}, score ${strength.toFixed(3)}, verified hit-rate ${(input.tracking.accuracy * 100).toFixed(0)}% over ${input.tracking.samples} graded calls`,
+      riskFlags: [],
+      toolsUsed: ["engine"],
+      llm: false
+    };
   }
-  // Already concentrated? A buy would be exposure-blocked anyway. Turn it
-  // into a rebalance sell (or stand down) instead of banging on a locked door.
-  if (side === "buy" && input.position.authShare >= 0.6) {
-    side = "hold";
-    sizePct = 0;
+
+  if (config.conviction === "high") {
+    return highConvictionGate(input.engine, proposal, input.missStreak);
   }
+  return proposal;
+}
+
+/**
+ * CONVICTION=high: trade only when the market is unambiguous. Any proposal is
+ * downgraded to a hold — with a machine-checkable reason — until BOTH momentum
+ * timeframes agree, the signal clears a stiffer floor, price is not stretched
+ * against us, volatility is calm, and the fund's own recent calls on that side
+ * are not a cascade of misses. The guard sits at the source so the LLM (or the
+ * fallback) can never talk its way into a low-quality trade.
+ */
+export function highConvictionGate(
+  engine: EngineOutput,
+  proposal: Proposal,
+  streak?: MissStreak
+): Proposal {
+  if (proposal.side === "hold") return proposal;
+
+  const sig = (k: string) => engine.signals.find((s) => s.key === k)?.value ?? 0;
+  const shortV = sig("short_momentum");
+  const medV = sig("medium_momentum");
+  const reversionV = sig("mean_reversion");
+  const vol = sig("volatility");
+  const strength = Math.abs(engine.score);
+
+  const blockers: string[] = [];
+  if (
+    Math.sign(shortV) !== Math.sign(medV) ||
+    Math.abs(shortV) < 0.05 ||
+    Math.abs(medV) < 0.05
+  ) {
+    blockers.push("short and medium momentum do not agree");
+  }
+  if (strength < 0.4) {
+    blockers.push(`signal strength ${engine.score.toFixed(3)} is below the 0.40 high-conviction floor`);
+  }
+  if (proposal.side === "buy" && reversionV < -0.6) {
+    blockers.push("price is stretched far above its trend — that is buying a top");
+  }
+  if (proposal.side === "sell" && reversionV > 0.6) {
+    blockers.push("price is washed out far below its trend — that is selling a bottom");
+  }
+  if (vol <= -0.4) {
+    blockers.push("volatility is extreme");
+  }
+  const sameSideMisses =
+    proposal.side === "buy" ? streak?.buy ?? 0 : streak?.sell ?? 0;
+  if (sameSideMisses >= 2) {
+    blockers.push(`the last ${sameSideMisses} graded calls on this side were misses`);
+  }
+
+  if (!blockers.length) return proposal;
   return {
-    side,
-    sizePct,
-    reason: `Deterministic fallback (no LLM): engine grade ${g}, score ${strength.toFixed(3)}, verified hit-rate ${(input.tracking.accuracy * 100).toFixed(0)}% over ${input.tracking.samples} graded calls`,
-    riskFlags: [],
-    toolsUsed: ["engine"],
-    llm: false
+    ...proposal,
+    side: "hold",
+    sizePct: 0,
+    reason: `[high-conviction] stood down: ${blockers.join("; ")}. Engine grade was ${engine.grade}, score ${engine.score.toFixed(3)}.`,
+    riskFlags: [...proposal.riskFlags, "conviction_hold"]
   };
 }

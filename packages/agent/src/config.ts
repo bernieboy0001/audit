@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { Deployed } from "./types.js";
 
+export type Conviction = "moderate" | "high";
+
 export interface LlmConfig {
   baseUrl: string;
   apiKey: string;
@@ -24,6 +26,7 @@ export interface Config {
   marketMakerEnabled: boolean;
   maxSizePct: number;
   minSignalAbs: number;
+  conviction: Conviction;
   explorerUrl: string;
   inspectRpcUrls: string[];
   inspectChainLabel: string;
@@ -64,6 +67,10 @@ export function loadConfig(dataDir?: string): Config {
     marketMakerEnabled: process.env.MARKET_MAKER !== "off",
     maxSizePct: Number(process.env.MAX_SIZE_PCT || 20),
     minSignalAbs: Number(process.env.MIN_SIGNAL_ABS || 0.25),
+    conviction:
+      String(process.env.CONVICTION || "moderate") === "high"
+        ? "high"
+        : "moderate",
     explorerUrl:
       process.env.EXPLORER_URL || "https://sepolia.basescan.org",
     inspectRpcUrls: splitRpcUrls(process.env.MAINNET_RPC_URL),

@@ -177,6 +177,7 @@ export interface AppState {
   inspection: InspectionResult | null;
   llm: { enabled: boolean; model: string };
   mode: string;
+  conviction: string;
   tracking: TrackingState;
   valueHistory: ValuePoint[];
 }
