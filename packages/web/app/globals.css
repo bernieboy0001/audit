@@ -266,6 +266,9 @@ a:hover {
     padding: 10px 10px;
     gap: 10px;
   }
+  .topbar {
+    flex-wrap: wrap;
+  }
   .gaugewrap {
     flex-direction: column;
     align-items: center;
@@ -280,6 +283,13 @@ a:hover {
   }
   .topstats {
     flex-wrap: wrap;
+  }
+  .inspectbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .inspectbar .term-button {
+    width: 100%;
   }
 }
 

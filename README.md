@@ -7,6 +7,9 @@
 
 Built for the Orion Builder Hackathon. Everything runs free on testnet.
 
+**▶ Live now:** <https://audit-agent-eta.vercel.app> (agent worker:
+<https://audit-agent-b1sx.onrender.com>). Works on any base address.
+
 ---
 
 ## Why this exists
@@ -18,8 +21,11 @@ exist is a fund that is **accountable**:
 - the engine writes every number (never the model),
 - the model writes every explanation (never a number),
 - every decision is hashed into an **append-only ledger**,
-- the intent is **committed on-chain before execution**, and
-- the agent **measures its own outcomes** and publishes whether it was right.
+- the intent is **committed on-chain before execution**,
+- the agent **measures its own outcomes** and publishes whether it was right,
+- the agent **learns**: its verified hit-rate — engine-computed from the
+  ledger — sizes every bet. Hot streak → press the edge. Cold streak → shrink
+  and hold. You can watch the trade-off happen live.
 
 That is the black-box recorder for AI agents — the trust layer every fund,
 DAO, and insurer needs before letting agents touch real money.
